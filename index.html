@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Delta PLC Mobile Assistant</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ============================================================
+     КНОПКИ НАВИГАЦИИ
+     ============================================================ -->
+<div class="max-w-md mx-auto bg-zinc-950 px-4 pt-4 flex gap-2">
+    <button id="btn-tab-filling" onclick="switchTab('filling')" class="flex-1 bg-amber-600 text-black font-black py-2 rounded text-xs uppercase tracking-wider transition cursor-pointer">
+        💧 Налив
+    </button>
+    <button id="btn-tab-labeling" onclick="switchTab('labeling')" class="flex-1 bg-zinc-900 text-zinc-400 font-bold py-2 rounded text-xs uppercase tracking-wider transition border border-zinc-800 cursor-pointer">
+        🏷 Этикетка
+    </button>
+    <button id="btn-tab-capping" onclick="switchTab('capping')" class="flex-1 bg-zinc-900 text-zinc-400 font-bold py-2 rounded text-xs uppercase tracking-wider transition border border-zinc-800 cursor-pointer">
+        🏺 Укупор
+    </button>
+</div>
+
+<!-- ============================================================
+     ВКЛАДКА: НАЛИВ
+     ============================================================ -->
+<div id="content-filling" class="app-container">
+    
+    <div class="input-panel">
+        <h3 class="panel-section-title">⚙️ Параметры Наладки</h3>
+        
+        <div class="form-group">
+            <label for="lineSelect">Технологическая линия:</label>
+            <select id="lineSelect" onchange="runUniversalCalculation()">
+                <option value="LINE_1_1">Линия 1.1</option>
+                <option value="LINE_1_2">Линия 1.2</option>
+                <option value="LINE_1_3" selected>Линия 1.3</option>
+                <option value="LINE_1_4">Линия 1.4</option>
+                <option value="LINE_1_5">Линия 1.5</option>
+                <option value="LINE_1_6">Линия 1.6</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="bottleHeightInput">Высота флакона по рулетке (мм):</label>
+            <input type="number" id="bottleHeightInput" value="245" min="50" max="500" step="5" oninput="runUniversalCalculation()">
+        </div>
+
+        <div class="form-group-row">
+            <div class="form-group-half">
+                <label for="volumeInput">Объем тары (мл):</label>
+                <input type="number" id="volumeInput" value="600" min="100" max="6000" step="50" oninput="runUniversalCalculation()">
+            </div>
+            <div class="form-group-half">
+                <label for="viscosityInput">Вязкость (ед.):</label>
+                <input type="number" id="viscosityInput" value="0" min="0" max="10000" step="50" oninput="runUniversalCalculation()">
+            </div>
+        </div>
+        
+        <div class="viscosity-hints">
+            <span>💧 0 ед. — Аспирин / Вода | 🍯 1450-1850 ед. — Мыло Milana</span>
+        </div>
+
+        <div class="engineer-disclaimer">
+            ⚠️ ВНИМАНИЕ:<br>
+            Данные настройки являются <span>РЕКОМЕНДАЦИЕЙ</span>, а не принуждением! Финальная корректировка уставок остается за наладчиком линии розлива.
+        </div>
+    </div>
+
+    <div class="delta-panel">
+        
+        <div id="viscosityNotice" class="critical-alert" style="display: none; margin-bottom: 10px; background-color: rgba(245, 158, 11, 0.15); border: 1px solid #f59e0b; color: #fef08a; padding: 10px; border-radius: 6px; font-size: 13px; font-weight: 500; text-align: center;">
+            💡 РЕКОМЕНДАЦИЯ ПЛК: Вязкость продукта превышает 1000 ед. Допускается использование режима ВЕРХНЕГО НАЛИВА для снижения износа привода траверсы.
+        </div>
+
+        <div class="delta-bezel">
+            
+            <div class="delta-header">
+                <div class="delta-logo">◤ DELTA</div>
+                <div class="arsanmak-logo">ARSANMAK</div>
+                <div class="delta-icons">
+                    <span class="icon-btn">⚙️</span>
+                    <span class="icon-btn btn-auto">AUTO</span>
+                </div>
+            </div>
+
+            <div class="delta-screen-wrapper">
+                <div class="delta-screen">
+                    
+                    <!-- ЛЕВАЯ ЧАСТЬ: Траверса сопел -->
+                    <div class="screen-left">
+                        <div class="nozzle-graphic-box">
+                            <div class="nozzle-icon">💧</div>
+                            <div class="nozzle-label">НАЗАД</div>
+                        </div>
+
+                        <div class="plc-row">
+                            <span class="plc-label">3.Скорость под.</span>
+                            <div class="plc-val-box" id="val_lift_speed_3">0</div>
+                        </div>
+                        <div class="plc-row">
+                            <span class="plc-label">3.Полож. сопел</span>
+                            <div class="plc-val-box" id="val_nozzle_pos_3">0</div>
+                        </div>
+                        <div class="plc-row">
+                            <span class="plc-label">2.Скорость под.</span>
+                            <div class="plc-val-box" id="val_lift_speed_2">0</div>
+                        </div>
+                        <div class="plc-row">
+                            <span class="plc-label">2.Полож. сопел</span>
+                            <div class="plc-val-box" id="val_nozzle_pos_2">0</div>
+                        </div>
+                        <div class="plc-row">
+                            <span class="plc-label">1.Скорость под.</span>
+                            <div class="plc-val-box" id="val_lift_speed_1">0</div>
+                        </div>
+                        <div class="plc-row">
+                            <span class="plc-label">1.Полож. сопел</span>
+                            <div class="plc-val-box" id="val_nozzle_pos_1">0</div>
+                        </div>
+                        
+                        <div class="plc-footer-btns">
+                            <div class="plc-btn btn-orange">ОТПРАВКА</div>
+                        </div>
+                    </div>
+
+                    <!-- ПРАВАЯ ЧАСТЬ: Скорости насоса, тайминги -->
+                    <div class="screen-right">
+                        <!-- 3-я скорость -->
+                        <div class="plc-row-right">
+                            <span class="plc-label-r">3.СКОРОСТЬ НАСОСА</span>
+                            <div class="plc-val-box-r" id="val_pump_speed_3">0.00</div>
+                        </div>
+                        <div class="plc-row-right">
+                            <span class="plc-label-r">3.ОБЪЕМ ПЕРЕХОДА</span>
+                            <div class="plc-val-box-r" id="val_trans_volume_3">0</div>
+                        </div>
+                        
+                        <!-- 2-я скорость -->
+                        <div class="plc-row-right">
+                            <span class="plc-label-r">2.СКОРОСТЬ НАСОСА</span>
+                            <div class="plc-val-box-r" id="val_pump_speed_2">0.00</div>
+                        </div>
+                        <div class="plc-row-right">
+                            <span class="plc-label-r">2.ОБЪЕМ ПЕРЕХОДА</span>
+                            <div class="plc-val-box-r" id="val_trans_volume_2">0</div>
+                        </div>
+                        
+                        <!-- 1-я скорость -->
+                        <div class="plc-row-right">
+                            <span class="plc-label-r">1.СКОРОСТЬ НАСОСА</span>
+                            <div class="plc-val-box-r" id="val_pump_speed_1">0.00</div>
+                        </div>
+                        
+                        <div class="plc-divider"></div>
+
+                        <!-- Положения сопел -->
+                        <div class="plc-row-right">
+                            <span class="plc-label-r">ВЕРХ. ПОЛОЖ. СОПЛА</span>
+                            <div class="plc-val-box-r" id="val_wait_point">0</div>
+                        </div>
+                        <div class="plc-row-right">
+                            <span class="plc-label-r">ВЕРХНИЙ НАЛИВ</span>
+                            <div class="plc-val-box-r" id="val_top_pour">0</div>
+                        </div>
+                        <div class="plc-row-right">
+                            <span class="plc-label-r">НИЖН. ПОЛОЖ. СОПЛА</span>
+                            <div class="plc-val-box-r" id="val_bottom_pos">0</div>
+                        </div>
+                        <div class="plc-row-right">
+                            <span class="plc-label-r">ОБЩИЙ ВЕС (мл.)</span>
+                            <div class="plc-val-box-r" id="val_total_weight">0</div>
+                        </div>
+
+                        <div class="plc-divider"></div>
+
+                        <!-- Тайминги шиберов -->
+                        <div class="plc-row-right">
+                            <span class="plc-label-r">ЗАКР. ШИБЕРА ВХОД</span>
+                            <div class="plc-val-box-r" id="val_shiber_close_in">0.0</div>
+                        </div>
+                        <div class="plc-row-right">
+                            <span class="plc-label-r">ОТКР. ШИБЕРА ВХОД</span>
+                            <div class="plc-val-box-r" id="val_shiber_open_in">0.0</div>
+                        </div>
+                        <div class="plc-row-right">
+                            <span class="plc-label-r">ЗАКР. ШИБЕРА ВЫХОД</span>
+                            <div class="plc-val-box-r" id="val_shiber_close_out">0.0</div>
+                        </div>
+                        <div class="plc-row-right">
+                            <span class="plc-label-r">СКОР. ОПУСК. ТРАВ.</span>
+                            <div class="plc-val-box-r" id="val_traverse_down_speed">0</div>
+                        </div>
+                        <div class="plc-row-right">
+                            <span class="plc-label-r">ОСН. СКОР. КОНВ.</span>
+                            <div class="plc-val-box-r" id="val_conveyor_main_speed">0.00</div>
+                        </div>
+                        <div class="plc-row-right">
+                            <span class="plc-label-r">НИЗК. СКОР. КОНВ.</span>
+                            <div class="plc-val-box-r" id="val_conveyor_low_speed">0.00</div>
+                        </div>
+
+                        <!-- Нижняя часть: рецепт -->
+                        <div class="plc-recipe-footer">
+                            <div class="recipe-nav">
+                                <span class="nav-arrow">▲</span>
+                                <span class="nav-num" id="val_line_num">1</span>
+                                <span class="nav-arrow">▼</span>
+                            </div>
+                            <div class="product-name-val" id="val_product_label">MILANA750</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="delta-settings-sub-screen">
+                <div class="settings-sub-title">⚙️ Настройки ПЛК (Экран задержек):</div>
+                <div class="settings-sub-row">
+                    <span>БЛОКИРОВКА КОНВЕЙЕРА:</span>
+                    <span class="status-badge" id="sub_conveyor_stop_badge">ЗАПУСТИТЬ</span>
+                </div>
+                <div class="settings-sub-row highlight-row">
+                    <span>ЗАДЕРЖКА ПОДЪЁМА (ПОГРУЖЕНИЕ):</span>
+                    <span class="sub-val text-cyan" id="sub_nozzle_lift_delay">0.0 сек</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================
+     ВКЛАДКА: ЭТИКЕТКА
+     ============================================================ -->
+<div id="content-labeling" class="max-w-md mx-auto bg-zinc-950 text-gray-100 p-4 font-sans select-none hidden" style="position: relative; overflow: hidden; border-radius: 8px;">
+    
+    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-12deg); font-size: 52px; font-weight: 900; color: rgba(74, 222, 128, 0.08); text-shadow: 0 0 20px rgba(74, 222, 128, 0.2), 0 0 50px rgba(22, 163, 74, 0.1); letter-spacing: 2px; white-space: nowrap; pointer-events: none; z-index: 0; user-select: none;">
+        GRASS UNIVERSITY
+    </div>
+    
+    <div class="border-b border-zinc-800 pb-3 mb-4 flex justify-between items-center" style="position: relative; z-index: 1;">
+        <div>
+            <h1 class="text-xl font-bold tracking-wider text-amber-500">🏷 ARSANMAK + HERMA</h1>
+            <p class="text-xs text-zinc-500">Калибровка и переналадка аппликатора</p>
+        </div>
+        <div class="bg-amber-600 text-black font-black text-xs px-2 py-1 rounded">⚙ HERMA</div>
+    </div>
+    
+    <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4 space-y-4 shadow-xl" style="position: relative; z-index: 1;">
+        <h2 class="text-sm font-bold text-zinc-400 uppercase tracking-widest border-b border-zinc-800 pb-1">⚙ Параметры Наладки</h2>
+        
+        <div class="form-group-labeling">
+            <label class="block text-xs font-bold text-zinc-400 mb-1">Форма флакона:</label>
+            <select id="bottle-type" onchange="toggleConeInput()" class="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-sm text-amber-400 focus:outline-none">
+                <option value="flat">Прямой плоский (на 2 этикетки)</option>
+                <option value="cone">Конусный (на 2 этикетки)</option>
+                <option value="belly">Пузатый сферический (на 2 этикетки)</option>
+                <option value="round">Круглый (круговая обкатка)</option>
+            </select>
+        </div>
+        
+        <div class="form-group-labeling">
+            <label class="block text-xs font-bold text-zinc-400 mb-1">Материал этикетки:</label>
+            <select id="label-material" class="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-sm text-amber-400 focus:outline-none">
+                <option value="pp">Полипропилен (ПП / Пленка)</option>
+                <option value="paper">Бумага (Жесткая основа)</option>
+            </select>
+        </div>
+        
+        <div class="form-group-labeling">
+            <label class="block text-xs font-bold text-zinc-400 mb-1">Линейная скорость конвейера (м/с):</label>
+            <input id="conveyor-speed" type="number" step="0.01" value="0.20" class="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-sm text-center font-mono text-green-400 focus:outline-none">
+        </div>
+        
+        <div class="form-group-labeling">
+            <label class="block text-xs font-bold text-zinc-400 mb-1">Высота флакона (мм):</label>
+            <input id="bottle-height" type="number" step="1" value="200" min="50" max="500" class="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-sm text-center font-mono text-green-400 focus:outline-none">
+        </div>
+
+        <div class="form-group-labeling">
+            <label class="block text-xs font-bold text-zinc-400 mb-1">Высота этикетки (мм):</label>
+            <input id="label-height" type="number" step="1" value="100" min="20" max="300" class="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-sm text-center font-mono text-green-400 focus:outline-none">
+        </div>
+        
+        <div id="cone-angle-block" class="form-group-labeling hidden">
+            <label class="block text-xs font-bold text-amber-400 mb-1">Угол стенки флакона по лазерному угломеру (град°):</label>
+            <input id="cone-angle" type="number" step="0.1" value="4.5" class="w-full bg-zinc-950 border border-amber-800 rounded p-2 text-sm text-center font-mono text-amber-400 focus:outline-none">
+        </div>
+        
+        <div id="belly-params" class="form-group-labeling hidden">
+            <label class="block text-xs font-bold text-amber-400 mb-1">Кривизна пуза (0-1):</label>
+            <input id="belly-curvature" type="range" min="0" max="1" step="0.1" value="0.5" oninput="document.getElementById('belly-curvature-value').textContent = this.value" class="w-full">
+            <div class="flex justify-between text-xs text-zinc-500">
+                <span>Плоский</span>
+                <span id="belly-curvature-value">0.5</span>
+                <span>Сильно пузатый</span>
+            </div>
+        </div>
+        
+        <div id="round-bottle-params" class="form-group-labeling hidden">
+            <div class="border-t border-amber-800 pt-3 mt-2">
+                <p class="text-xs text-amber-400 font-bold mb-2">📐 Параметры обкаточного ремня:</p>
+                
+                <label class="block text-xs font-bold text-zinc-400 mb-1">Диаметр флакона (мм):</label>
+                <input id="bottle-diameter" type="number" step="1" value="75" min="20" max="200" class="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-sm text-center font-mono text-green-400 focus:outline-none">
+                
+                <label class="block text-xs font-bold text-zinc-400 mb-1 mt-3">Длина этикетки (мм):</label>
+                <input id="label-length" type="number" step="1" value="180" min="50" max="500" class="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-sm text-center font-mono text-green-400 focus:outline-none">
+                
+                <label class="block text-xs font-bold text-zinc-400 mb-1 mt-3">Диаметр приводного ролика (мм):</label>
+                <input id="roller-diameter" type="number" step="1" value="50" min="20" max="150" class="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-sm text-center font-mono text-green-400 focus:outline-none">
+            </div>
+        </div>
+        
+        <button onclick="generateTechCard()" class="w-full bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-black font-black py-3 rounded text-sm uppercase tracking-wider transition active:scale-95 cursor-pointer">
+            Сформировать Техкарту ПЛК
+        </button>
+    </div>
+
+    <div id="tech-card-result" class="hidden mt-4 bg-zinc-900 border-2 border-dashed border-zinc-800 rounded-lg p-4 space-y-4" style="position: relative; z-index: 1;">
+        <div class="flex justify-between items-center border-b border-zinc-800 pb-2">
+            <span class="text-xs font-mono text-zinc-600">ID_RECIPE: AUTO_GEN</span>
+            <span class="text-xs font-bold text-green-400">● РАСЧЕТ ВЫПОЛНЕН</span>
+        </div>
+        <div class="space-y-2">
+            <h3 class="text-xs font-black text-amber-500 uppercase tracking-wider">🔧 1. Механическая переналадка Arsanmak</h3>
+            <ul id="mech-instructions" class="text-xs text-zinc-400 space-y-1.5 list-disc pl-4 font-mono"></ul>
+        </div>
+        <div class="space-y-2 pt-2 border-t border-zinc-900">
+            <h3 class="text-xs font-black text-amber-500 uppercase tracking-wider">⚙ 2. Настройка параметров Herma</h3>
+            <ul id="herma-instructions" class="text-xs text-zinc-400 space-y-1.5 list-disc pl-4 font-mono"></ul>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================
+     ВКЛАДКА: УКУПОР
+     ============================================================ -->
+<div id="content-capping" class="max-w-md mx-auto bg-zinc-950 text-gray-100 p-4 font-sans select-none hidden" style="position: relative; overflow: hidden; border-radius: 8px;">
+    
+    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-12deg); font-size: 52px; font-weight: 900; color: rgba(74, 222, 128, 0.08); text-shadow: 0 0 20px rgba(74, 222, 128, 0.2), 0 0 50px rgba(22, 163, 74, 0.1); letter-spacing: 2px; white-space: nowrap; pointer-events: none; z-index: 0; user-select: none;">
+        GRASS UNIVERSITY
+    </div>
+    
+    <div class="border-b border-zinc-800 pb-3 mb-4 flex justify-between items-center" style="position: relative; z-index: 1;">
+        <div>
+            <h1 class="text-xl font-bold tracking-wider text-amber-500">🏺 ARSANMAK KV 30</h1>
+            <p class="text-xs text-zinc-500">3-шпиндельный укупор + добивалка</p>
+        </div>
+        <div class="bg-amber-600 text-black font-black text-xs px-2 py-1 rounded">⚙ УКУПОР</div>
+    </div>
+    
+    <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4 space-y-4 shadow-xl" style="position: relative; z-index: 1;">
+        <h2 class="text-sm font-bold text-zinc-400 uppercase tracking-widest border-b border-zinc-800 pb-1">⚙ Переналадка укупорного узла</h2>
+        
+        <div class="form-group-labeling">
+            <label class="block text-xs font-bold text-zinc-400 mb-1">Тип укупорки:</label>
+            <div class="flex gap-2">
+                <button id="cap-type-cap" onclick="selectCappingType('cap')" class="flex-1 py-2 rounded text-xs font-bold uppercase tracking-wider transition border-2 bg-zinc-800 border-zinc-600 text-zinc-400 cursor-pointer">
+                    🏷 Крышка
+                </button>
+                <button id="cap-type-trigger" onclick="selectCappingType('trigger')" class="flex-1 py-2 rounded text-xs font-bold uppercase tracking-wider transition border-2 bg-zinc-800 border-zinc-600 text-zinc-400 cursor-pointer">
+                    🔫 Триггер
+                </button>
+            </div>
+        </div>
+        
+        <div class="form-group-labeling">
+            <label class="block text-xs font-bold text-zinc-400 mb-1">Диаметр крышки/триггера (мм):</label>
+            <input id="cap-diameter" type="number" step="1" value="30" min="10" max="100" class="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-sm text-center font-mono text-green-400 focus:outline-none">
+        </div>
+        
+        <div class="form-group-labeling">
+            <label class="block text-xs font-bold text-zinc-400 mb-1">Высота флакона (мм):</label>
+            <input id="capping-bottle-height" type="number" step="1" value="200" min="50" max="500" class="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-sm text-center font-mono text-green-400 focus:outline-none">
+        </div>
+        
+        <div class="form-group-labeling">
+            <label class="block text-xs font-bold text-zinc-400 mb-1">Высота крышки/триггера (мм):</label>
+            <input id="cap-height" type="number" step="1" value="15" min="5" max="50" class="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-sm text-center font-mono text-green-400 focus:outline-none">
+        </div>
+        
+        <div class="form-group-labeling">
+            <label class="block text-xs font-bold text-zinc-400 mb-1">Скорость конвейера (тахометр, м/с):</label>
+            <input id="capping-conveyor-speed" type="number" step="0.01" value="0.20" min="0.01" max="1.00" class="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-sm text-center font-mono text-green-400 focus:outline-none">
+            <p class="text-xs text-zinc-500 mt-1">📏 Замерьте ручным тахометром скорость конвейерной ленты</p>
+        </div>
+        
+        <div class="form-group-labeling">
+            <label class="block text-xs font-bold text-zinc-400 mb-1">Материал укупорки:</label>
+            <select id="cap-material" class="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-sm text-amber-400 focus:outline-none">
+                <option value="pet">ПЭТ (пластик)</option>
+                <option value="metal">Металл</option>
+                <option value="cork">Пробка</option>
+                <option value="aluminum">Алюминий</option>
+            </select>
+        </div>
+        
+        <button onclick="calculateCappingParams()" class="w-full bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-black font-black py-3 rounded text-sm uppercase tracking-wider transition active:scale-95 cursor-pointer">
+            🚀 Рассчитать параметры настройки
+        </button>
+    </div>
+
+    <div id="capping-result" class="hidden mt-4 bg-zinc-900 border-2 border-dashed border-zinc-800 rounded-lg p-4 space-y-4" style="position: relative; z-index: 1;">
+        <div class="flex justify-between items-center border-b border-zinc-800 pb-2">
+            <span class="text-xs font-mono text-zinc-600">KV_30: RECIPE</span>
+            <span class="text-xs font-bold text-green-400">● РАСЧЕТ ВЫПОЛНЕН</span>
+        </div>
+        
+        <div>
+            <h3 class="text-xs font-black text-amber-500 uppercase tracking-wider">📊 ПАРАМЕТРЫ ДЛЯ ПАНЕЛИ DELTA</h3>
+            <ul id="capping-params-list" class="text-xs text-zinc-400 space-y-1.5 font-mono mt-2"></ul>
+        </div>
+        
+        <div class="pt-2 border-t border-zinc-900">
+            <h3 class="text-xs font-black text-amber-500 uppercase tracking-wider">🔧 НАСТРОЙКА ПНЕВМАТИКИ</h3>
+            <ul id="capping-pneumatic-list" class="text-xs text-zinc-400 space-y-1.5 font-mono mt-2"></ul>
+        </div>
+        
+        <div class="pt-2 border-t border-zinc-900">
+            <h3 class="text-xs font-black text-amber-500 uppercase tracking-wider">📐 НАСТРОЙКА МЕХАНИКИ</h3>
+            <ul id="capping-mechanical-list" class="text-xs text-zinc-400 space-y-1.5 font-mono mt-2"></ul>
+        </div>
+        
+        <div class="pt-2 border-t border-zinc-900">
+            <h3 class="text-xs font-black text-amber-500 uppercase tracking-wider">📈 ПРОИЗВОДИТЕЛЬНОСТЬ</h3>
+            <ul id="capping-performance-list" class="text-xs text-zinc-400 space-y-1.5 font-mono mt-2"></ul>
+        </div>
+        
+        <div class="pt-2 border-t border-zinc-900">
+            <h3 class="text-xs font-black text-amber-500 uppercase tracking-wider">📋 ПОШАГОВАЯ ИНСТРУКЦИЯ</h3>
+            <ul id="capping-steps-list" class="text-xs text-zinc-300 space-y-2 font-mono mt-2"></ul>
+        </div>
+        
+        <div class="pt-2 border-t border-zinc-900 flex gap-2">
+            <button onclick="copyCappingParams()" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 rounded text-xs uppercase tracking-wider transition cursor-pointer">
+                📋 Копировать параметры
+            </button>
+            <button onclick="resetCappingForm()" class="flex-1 bg-zinc-700 hover:bg-zinc-600 text-white font-bold py-2 rounded text-xs uppercase tracking-wider transition cursor-pointer">
+                🔄 Сбросить
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
