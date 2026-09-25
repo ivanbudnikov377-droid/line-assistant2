@@ -95,6 +95,7 @@ button { cursor: pointer; }
 }
 .tab-icon { font-size: 16px; }
 .tab-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+#btn-share { flex: 0 0 auto; padding: 10px 14px; }
 
 /* ============================================================
    ОСНОВНОЙ КОНТЕЙНЕР
@@ -187,6 +188,22 @@ button { cursor: pointer; }
     background: var(--bg-0);
     border-radius: var(--r-sm);
 }
+.calc-hint {
+    margin-top: var(--s-2);
+    margin-bottom: var(--s-2);
+    padding: var(--s-2) var(--s-3);
+    background: rgba(0, 212, 255, 0.08);
+    border: 1px solid rgba(0, 212, 255, 0.25);
+    border-radius: var(--r-sm);
+    font-size: 11.5px;
+    color: var(--text-2);
+    text-align: center;
+}
+.calc-hint b {
+    color: var(--accent-text);
+    font-family: var(--font-mono);
+    font-size: 13px;
+}
 
 /* ============================================================
    АЛЕРТЫ
@@ -251,6 +268,11 @@ button { cursor: pointer; }
     letter-spacing: 0.15em;
     color: var(--text-1);
 }
+.plc-head-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
 .plc-mode {
     font-family: var(--font-mono);
     font-size: 10px;
@@ -261,6 +283,24 @@ button { cursor: pointer; }
     border-radius: 3px;
     letter-spacing: 0.1em;
 }
+.plc-send-btn {
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 4px 10px;
+    background: rgba(0, 224, 138, 0.12);
+    color: #7ae7bb;
+    border: 1px solid rgba(0, 224, 138, 0.4);
+    border-radius: 3px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    transition: background .15s, transform .1s;
+    min-height: 26px;
+}
+.plc-send-btn:hover { background: rgba(0, 224, 138, 0.22); }
+.plc-send-btn:active { transform: scale(0.95); }
+
 .plc-screen {
     background: linear-gradient(135deg, #0c1a33 0%, #060e20 100%);
     border: 1px solid #0a1830;
@@ -280,7 +320,11 @@ button { cursor: pointer; }
     font-family: var(--font-ui);
     font-size: 44px;
     font-weight: 900;
-    color: rgba(0, 212, 255, 0.06);
+    color: rgba(0, 255, 136, 0.22);
+    text-shadow:
+        0 0 8px rgba(0, 255, 136, 0.55),
+        0 0 22px rgba(0, 224, 138, 0.45),
+        0 0 48px rgba(0, 224, 138, 0.28);
     letter-spacing: 4px;
     white-space: nowrap;
     pointer-events: none;
@@ -610,6 +654,13 @@ button { cursor: pointer; }
 .btn-block { width: 100%; }
 .btn-row { display: flex; gap: var(--s-2); margin-top: var(--s-3); }
 .btn-row .btn { flex: 1; }
+.btn-sm {
+    padding: 6px 10px;
+    font-size: 11px;
+    min-height: 32px;
+    text-transform: none;
+    letter-spacing: 0;
+}
 
 /* ============================================================
    CALLOUT
@@ -755,7 +806,11 @@ button { cursor: pointer; }
     font-family: var(--font-ui);
     font-size: 38px;
     font-weight: 900;
-    color: rgba(0, 212, 255, 0.04);
+    color: rgba(0, 255, 136, 0.18);
+    text-shadow:
+        0 0 8px rgba(0, 255, 136, 0.50),
+        0 0 22px rgba(0, 224, 138, 0.40),
+        0 0 48px rgba(0, 224, 138, 0.22);
     letter-spacing: 4px;
     white-space: nowrap;
     pointer-events: none;
@@ -824,6 +879,50 @@ button { cursor: pointer; }
     border-top: 1px solid var(--border-1);
 }
 .modal-footer-link { margin-top: var(--s-2); text-align: center; }
+
+/* ============================================================
+   БЛОК ОТПРАВКИ В ПЛК
+   ============================================================ */
+.send-block {
+    background: var(--bg-2);
+    border: 1px solid var(--border-1);
+    border-radius: var(--r-sm);
+    padding: var(--s-3);
+    margin-bottom: var(--s-3);
+}
+.send-section + .send-section {
+    margin-top: var(--s-3);
+    padding-top: var(--s-3);
+    border-top: 1px dashed var(--border-1);
+}
+.send-section h4 {
+    font-size: 11px;
+    color: var(--accent-text);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: var(--s-2);
+    font-weight: 700;
+}
+.send-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.send-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--s-2);
+    padding: 3px 0;
+    font-size: 12px;
+    color: var(--text-2);
+    font-family: var(--font-mono);
+    border-bottom: 1px dashed var(--border-1);
+}
+.send-list li:last-child { border-bottom: none; }
+.send-list li span:first-child { color: var(--text-3); font-family: var(--font-ui); }
+.send-list li b { color: var(--accent-text); font-weight: 700; }
 
 /* ============================================================
    КАРТОЧКИ ПРИВОДОВ В ИНЖЕНЕРНОМ МЕНЮ
@@ -950,7 +1049,6 @@ button { cursor: pointer; }
     border-radius: 4px;
     cursor: pointer;
     transition: background .12s, color .12s;
-    letter-spacing: 0.01em;
 }
 .dropdown-menu button:hover { background: var(--bg-3); color: var(--accent-text); }
 
@@ -1111,13 +1209,6 @@ button { cursor: pointer; }
     padding-top: var(--s-2);
     border-top: 1px dashed var(--border-1);
 }
-.btn-sm {
-    padding: 6px 10px;
-    font-size: 11px;
-    min-height: 32px;
-    text-transform: none;
-    letter-spacing: 0;
-}
 
 /* ============================================================
    АДАПТИВНОСТЬ
@@ -1128,15 +1219,27 @@ button { cursor: pointer; }
     .plc-row b { font-size: 12px; min-width: 42px; }
     .tab-label { display: none; }
     .tab-icon { font-size: 18px; }
+    #btn-share { padding: 10px 10px; }
     .modal-actions-grid { grid-template-columns: 1fr; }
     .modal { max-height: 95vh; }
     .modal-body { padding: var(--s-3); }
-    .modal::before { font-size: 28px; }
-    .plc-screen::before { font-size: 32px; }
+    .modal::before {
+        font-size: 28px;
+        text-shadow:
+            0 0 6px rgba(0, 255, 136, 0.50),
+            0 0 16px rgba(0, 224, 138, 0.35);
+    }
+    .plc-screen::before {
+        font-size: 32px;
+        text-shadow:
+            0 0 6px rgba(0, 255, 136, 0.55),
+            0 0 18px rgba(0, 224, 138, 0.38);
+    }
     .dropdown-menu { right: auto; left: 0; min-width: 100%; width: 100%; }
     .help-toc { padding: var(--s-2); gap: 6px; }
     .help-toc a { font-size: 11px; padding: 5px 8px; }
     .journal-entry-grid { grid-template-columns: 1fr; }
+    .plc-send-btn { font-size: 9px; padding: 3px 7px; }
 }
 @media (max-width: 380px) {
     .field-row { grid-template-columns: 1fr; }
