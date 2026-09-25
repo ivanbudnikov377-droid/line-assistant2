@@ -1,0 +1,20 @@
+{
+  "name": "Mobile Assistant 2.0",
+  "short_name": "Assistant",
+  "description": "Помощник наладчика линии розлива",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0a0e14",
+  "theme_color": "#0a0e14",
+  "lang": "ru",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
