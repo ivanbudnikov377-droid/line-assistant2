@@ -466,6 +466,34 @@ button { cursor: pointer; }
     border: 1px solid rgba(0, 224, 138, 0.35);
 }
 
+/* === Подсказка рядом со значением задержки === */
+.plc-delay-row {
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.plc-delay-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+.plc-delay-tip {
+    font-family: var(--font-ui);
+    font-size: 10.5px;
+    color: #ffb020;
+    background: rgba(255, 176, 32, 0.08);
+    border: 1px solid rgba(255, 176, 32, 0.3);
+    border-radius: 4px;
+    padding: 3px 8px;
+    line-height: 1.3;
+    white-space: nowrap;
+    cursor: help;
+    transition: background .15s;
+}
+.plc-delay-tip:hover { background: rgba(255, 176, 32, 0.16); }
+
 /* ============================================================
    ПЛАВАЮЩИЕ КНОПКИ
    ============================================================ */
@@ -1211,6 +1239,1118 @@ button { cursor: pointer; }
 }
 
 /* ============================================================
+   ТРЕНАЖЁР · ГЛАВНОЕ МЕНЮ
+   ============================================================ */
+.sim-hero {
+    position: relative;
+    background: linear-gradient(135deg, #001a0d 0%, #000 100%);
+    border: 3px solid #00ff44;
+    border-radius: var(--r);
+    padding: 32px 16px;
+    margin-bottom: var(--s-3);
+    text-align: center;
+    overflow: hidden;
+    box-shadow:
+        0 0 30px rgba(0, 255, 68, 0.4),
+        inset 0 0 60px rgba(0, 255, 68, 0.08);
+}
+.sim-hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+        0deg, rgba(0,0,0,.25) 0px, rgba(0,0,0,.25) 1px, transparent 1px, transparent 3px
+    );
+    pointer-events: none;
+}
+.sim-hero-title {
+    font-family: var(--font-mono);
+    font-size: 26px;
+    font-weight: 900;
+    color: #00ff44;
+    letter-spacing: 4px;
+    text-shadow:
+        0 0 10px #00ff44,
+        0 0 30px #00ff44,
+        3px 3px 0 #008822;
+    animation: simHeroGlow 1.6s ease-in-out infinite alternate;
+}
+.sim-hero-sub {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: #00ff44;
+    letter-spacing: 6px;
+    margin-top: 8px;
+    opacity: 0.8;
+}
+@keyframes simHeroGlow {
+    from { text-shadow: 0 0 10px #00ff44, 0 0 30px #00ff44, 3px 3px 0 #008822; }
+    to   { text-shadow: 0 0 18px #00ff44, 0 0 55px #00ff44, 0 0 90px #00ff44, 3px 3px 0 #008822; }
+}
+
+.sim-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--s-2);
+    margin-bottom: var(--s-3);
+    padding: var(--s-3);
+    background: var(--bg-0);
+    border-radius: var(--r-sm);
+    border: 1px solid var(--border-1);
+}
+.sim-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+.sim-stat span {
+    font-size: 10px;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.sim-stat b {
+    font-family: var(--font-mono);
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--accent-text);
+}
+
+.sim-mode-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s-2);
+}
+@media (max-width: 500px) {
+    .sim-mode-grid { grid-template-columns: 1fr; }
+}
+.sim-mode-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: var(--s-3);
+    background: var(--bg-2);
+    border: 2px solid var(--border-2);
+    border-radius: var(--r-sm);
+    color: var(--text-1);
+    cursor: pointer;
+    transition: all .15s;
+    min-height: 110px;
+    font-family: var(--font-ui);
+}
+.sim-mode-btn:hover {
+    border-color: var(--accent);
+    background: var(--bg-3);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 212, 255, 0.15);
+}
+.sim-mode-icon { font-size: 32px; }
+.sim-mode-name {
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    color: var(--accent-text);
+}
+.sim-mode-desc {
+    font-size: 11px;
+    color: var(--text-3);
+    text-align: center;
+    line-height: 1.3;
+}
+.sim-mode-btn-wide { grid-column: span 2; }
+@media (max-width: 500px) {
+    .sim-mode-btn-wide { grid-column: span 1; }
+}
+.sim-training-btn {
+    border-color: #66e3ff !important;
+    background: linear-gradient(135deg, rgba(0, 212, 255, 0.08), rgba(102, 227, 255, 0.04)) !important;
+}
+.sim-training-btn:hover {
+    background: linear-gradient(135deg, rgba(0, 212, 255, 0.18), rgba(102, 227, 255, 0.08)) !important;
+}
+.sim-training-btn .sim-mode-name { color: #66e3ff; }
+
+/* ============================================================
+   ВЫБОР СЛОЖНОСТИ
+   ============================================================ */
+.sim-diff-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--s-2);
+}
+@media (min-width: 600px) {
+    .sim-diff-grid { grid-template-columns: 1fr 1fr 1fr; }
+}
+.sim-diff-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: var(--s-3);
+    background: var(--bg-2);
+    border: 2px solid var(--border-2);
+    border-radius: var(--r-sm);
+    color: var(--text-1);
+    cursor: pointer;
+    transition: all .15s;
+    min-height: 130px;
+    font-family: var(--font-ui);
+}
+.sim-diff-btn:hover {
+    border-color: var(--accent);
+    background: var(--bg-3);
+    transform: translateY(-2px);
+}
+.sim-diff-icon { font-size: 32px; }
+.sim-diff-name {
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    color: var(--accent-text);
+}
+.sim-diff-desc {
+    font-size: 11px;
+    color: var(--text-3);
+    font-family: var(--font-mono);
+}
+.sim-diff-xp {
+    font-size: 10px;
+    color: var(--warning);
+    font-family: var(--font-mono);
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: rgba(255, 176, 32, 0.12);
+    margin-top: 4px;
+}
+
+/* ============================================================
+   ВЫБОР ЛИНИИ
+   ============================================================ */
+.sim-line-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: var(--s-2);
+}
+@media (max-width: 500px) {
+    .sim-line-grid { grid-template-columns: 1fr 1fr; }
+}
+.sim-line-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: var(--s-3);
+    background: var(--bg-2);
+    border: 2px solid var(--border-2);
+    border-radius: var(--r-sm);
+    color: var(--text-1);
+    cursor: pointer;
+    transition: all .15s;
+    min-height: 90px;
+    font-family: var(--font-ui);
+}
+.sim-line-btn:hover {
+    border-color: var(--accent);
+    background: var(--bg-3);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 212, 255, 0.15);
+}
+.sim-line-num {
+    font-family: var(--font-mono);
+    font-size: 22px;
+    font-weight: 900;
+    color: var(--accent-text);
+    text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+}
+.sim-line-desc {
+    font-size: 10px;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-align: center;
+}
+
+/* ============================================================
+   ПЛАШКИ ОГРАНИЧЕНИЙ И ТРЕНИРОВКИ
+   ============================================================ */
+.sim-limits-info {
+    margin-bottom: var(--s-3);
+    padding: var(--s-2) var(--s-3);
+    background: rgba(255, 176, 32, 0.08);
+    border: 1px solid rgba(255, 176, 32, 0.35);
+    border-radius: var(--r-sm);
+    color: #ffd484;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    text-align: center;
+    line-height: 1.5;
+}
+.sim-limits-info b { color: #ffb020; font-weight: 800; }
+
+.sim-training-info {
+    margin-bottom: var(--s-3);
+    padding: var(--s-3);
+    background: rgba(0, 212, 255, 0.08);
+    border: 1px solid rgba(0, 212, 255, 0.35);
+    border-radius: var(--r-sm);
+    color: #a7e5ff;
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: center;
+    font-family: var(--font-mono);
+}
+
+.sim-training-badge {
+    display: inline-block;
+    margin-bottom: var(--s-3);
+    padding: 4px 10px;
+    background: rgba(0, 212, 255, 0.12);
+    color: #66e3ff;
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    border-radius: 4px;
+    border: 1px solid rgba(0, 212, 255, 0.4);
+}
+
+/* ============================================================
+   ЭКРАН ЗАДАНИЯ
+   ============================================================ */
+.sim-task-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--s-3);
+    padding-bottom: var(--s-3);
+    border-bottom: 1px solid var(--border-1);
+}
+.sim-task-diff {
+    display: inline-block;
+    padding: 3px 8px;
+    background: rgba(0, 212, 255, 0.12);
+    color: var(--accent-text);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    border-radius: 3px;
+    margin-right: var(--s-2);
+}
+.sim-task-progress {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-3);
+}
+.sim-task-streak {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: #ffb020;
+    font-weight: 800;
+    padding: 3px 8px;
+    background: rgba(255, 176, 32, 0.12);
+    border-radius: 3px;
+    margin-left: var(--s-2);
+    animation: simStreakPulse 1s ease infinite alternate;
+}
+@keyframes simStreakPulse {
+    from { box-shadow: 0 0 0 0 rgba(255, 176, 32, 0); }
+    to   { box-shadow: 0 0 12px 0 rgba(255, 176, 32, 0.6); }
+}
+
+.sim-screen {
+    background: #061a06;
+    border: 4px solid #1e3a1e;
+    border-radius: 6px;
+    padding: var(--s-3);
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--s-3);
+    position: relative;
+    overflow: hidden;
+    box-shadow:
+        inset 0 0 60px rgba(0, 255, 0, 0.08),
+        0 0 20px rgba(0, 255, 0, 0.1);
+}
+@media (min-width: 700px) {
+    .sim-screen { grid-template-columns: 1fr 1.2fr; }
+}
+.sim-screen::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+        0deg, rgba(0,0,0,.18) 0px, rgba(0,0,0,.18) 1px, transparent 1px, transparent 3px
+    );
+    pointer-events: none;
+    z-index: 2;
+}
+.sim-screen::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.5) 100%);
+    pointer-events: none;
+    z-index: 3;
+}
+.sim-screen > * { position: relative; z-index: 1; }
+.sim-screen-title {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    color: #00ff44;
+    text-shadow: 0 0 6px rgba(0, 255, 68, 0.6);
+    margin-bottom: var(--s-2);
+    padding-bottom: 4px;
+    border-bottom: 1px dashed rgba(0, 255, 68, 0.3);
+}
+.sim-product-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.sim-product-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--s-2);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 3px 0;
+}
+.sim-product-list span {
+    color: rgba(0, 255, 68, 0.55);
+    font-size: 11px;
+}
+.sim-product-list b {
+    color: #00ff44;
+    text-shadow: 0 0 4px rgba(0, 255, 68, 0.6);
+    font-weight: 800;
+}
+.sim-inputs { display: flex; flex-direction: column; gap: 6px; }
+.sim-input-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: var(--s-2);
+    position: relative;
+}
+.sim-input-row label {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: rgba(0, 255, 68, 0.85);
+    letter-spacing: 0.03em;
+}
+.sim-input-row input {
+    width: 90px;
+    padding: 6px 8px;
+    background: #000;
+    border: 2px solid rgba(0, 255, 68, 0.4);
+    border-radius: 3px;
+    color: #00ff44;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 800;
+    text-align: center;
+    text-shadow: 0 0 4px rgba(0, 255, 68, 0.5);
+    transition: border-color .15s, box-shadow .15s;
+}
+.sim-input-row input:focus {
+    outline: none;
+    border-color: #00ff44;
+    box-shadow: 0 0 12px rgba(0, 255, 68, 0.4);
+}
+.sim-input-row input.is-correct {
+    border-color: #00ff44;
+    background: rgba(0, 255, 68, 0.08);
+    animation: simInputPulse 0.5s ease;
+}
+.sim-input-row input.is-wrong {
+    border-color: #ff3344;
+    color: #ff3344;
+    text-shadow: 0 0 4px rgba(255, 51, 68, 0.6);
+    background: rgba(255, 51, 68, 0.08);
+    animation: simInputShake 0.3s ease;
+}
+.sim-input-row input.is-overload {
+    border-color: #ff5500 !important;
+    color: #ff5500 !important;
+    background: rgba(255, 85, 0, 0.12) !important;
+    box-shadow: 0 0 12px rgba(255, 85, 0, 0.5) !important;
+    animation: simInputShake 0.3s ease;
+}
+@keyframes simInputPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+@keyframes simInputShake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
+}
+
+.sim-hint {
+    margin-top: var(--s-3);
+    padding: var(--s-3);
+    background: rgba(255, 176, 32, 0.08);
+    border: 1px dashed rgba(255, 176, 32, 0.4);
+    border-radius: var(--r-sm);
+    font-size: 12px;
+    color: #ffd484;
+    line-height: 1.5;
+    font-family: var(--font-mono);
+}
+
+/* Стрелка-компас у поля */
+.sim-input-hint {
+    position: absolute;
+    right: -22px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 16px;
+    font-weight: 900;
+    opacity: 0;
+    animation: simHintFadeIn 0.35s ease forwards;
+    pointer-events: none;
+}
+.sim-input-hint.up   { color: #ff3344; text-shadow: 0 0 8px rgba(255,51,68,0.8); }
+.sim-input-hint.down { color: #00d4ff; text-shadow: 0 0 8px rgba(0,212,255,0.8); }
+.sim-input-hint.ok   { color: #00ff44; text-shadow: 0 0 8px rgba(0,255,68,0.8); }
+@keyframes simHintFadeIn {
+    from { opacity: 0; transform: translate(-6px, -50%); }
+    to   { opacity: 1; transform: translate(0, -50%); }
+}
+
+.sim-input-explain {
+    grid-column: 1 / -1;
+    font-size: 10.5px;
+    color: #ffb020;
+    font-family: var(--font-mono);
+    padding: 2px 0 6px 2px;
+    opacity: 0;
+    animation: simHintFadeIn 0.4s ease 0.15s forwards;
+}
+.sim-input-explain b { color: #ffd484; }
+
+/* ============================================================
+   РЕЗУЛЬТАТ
+   ============================================================ */
+.sim-result-body { display: flex; flex-direction: column; gap: var(--s-2); margin-bottom: var(--s-3); }
+.sim-result-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto auto;
+    gap: var(--s-2);
+    align-items: center;
+    padding: var(--s-2);
+    background: var(--bg-2);
+    border-left: 3px solid var(--success);
+    border-radius: var(--r-sm);
+    font-family: var(--font-mono);
+    font-size: 12px;
+}
+.sim-result-row.is-bad {
+    border-left-color: var(--danger);
+    background: rgba(255, 71, 87, 0.06);
+}
+.sim-result-row .sim-result-label { color: var(--text-3); font-size: 11px; }
+.sim-result-row .sim-result-user { color: var(--text-1); font-weight: 700; }
+.sim-result-row .sim-result-ideal { color: var(--accent-text); font-weight: 700; }
+.sim-result-row .sim-result-delta {
+    color: var(--warning);
+    font-size: 11px;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-weight: 700;
+}
+.sim-result-row.is-bad .sim-result-user { color: var(--danger); text-decoration: line-through; }
+
+.sim-arrow { font-size: 13px; line-height: 1; }
+.sim-arrow-up {
+    color: #ff3344;
+    text-shadow: 0 0 6px rgba(255, 51, 68, 0.5);
+}
+.sim-arrow-down {
+    color: #00d4ff;
+    text-shadow: 0 0 6px rgba(0, 212, 255, 0.5);
+}
+.sim-arrow-ok {
+    color: #00ff44;
+    text-shadow: 0 0 6px rgba(0, 255, 68, 0.5);
+}
+
+.sim-explain-block {
+    margin-top: var(--s-3);
+    margin-bottom: var(--s-3);
+    padding: var(--s-3);
+    background: rgba(255, 176, 32, 0.06);
+    border: 1px dashed rgba(255, 176, 32, 0.35);
+    border-radius: var(--r-sm);
+}
+.sim-explain-title {
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    color: #ffb020;
+    text-transform: uppercase;
+    margin-bottom: var(--s-2);
+}
+.sim-explain-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.sim-explain-list li {
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: #ffd484;
+    padding-left: 16px;
+    position: relative;
+    font-family: var(--font-ui);
+}
+.sim-explain-list li::before {
+    content: "▸";
+    position: absolute;
+    left: 0;
+    color: #ffb020;
+    font-weight: 800;
+}
+.sim-explain-list li b { color: #ffb020; font-weight: 800; }
+.sim-explain-list li.is-danger { color: #ffb3ba; }
+.sim-explain-list li.is-danger::before { color: #ff3344; }
+.sim-explain-list li.is-danger b { color: #ff3344; }
+.sim-explain-list li.is-ok { color: #a7f3d0; }
+.sim-explain-list li.is-ok::before { color: #00ff44; }
+.sim-explain-list li.is-ok b { color: #00ff44; }
+
+/* ============================================================
+   ЛИДЕРБОРД
+   ============================================================ */
+.sim-leaderboard-box {
+    background: linear-gradient(135deg, #1a0f00 0%, #000 100%);
+    border: 3px solid #ffb020;
+    border-radius: var(--r);
+    padding: var(--s-4);
+    box-shadow: 0 0 30px rgba(255, 176, 32, 0.3);
+}
+.sim-lb-title {
+    font-family: var(--font-mono);
+    font-size: 16px;
+    font-weight: 900;
+    text-align: center;
+    color: #ffb020;
+    letter-spacing: 3px;
+    margin-bottom: var(--s-4);
+    text-shadow: 0 0 10px #ffb020, 0 0 20px #ffb020;
+}
+.sim-lb-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.sim-lb-list li {
+    display: grid;
+    grid-template-columns: 32px 1fr auto auto;
+    gap: var(--s-2);
+    align-items: center;
+    padding: var(--s-2) var(--s-3);
+    background: rgba(0,0,0,0.4);
+    border-radius: var(--r-sm);
+    font-family: var(--font-mono);
+    font-size: 13px;
+}
+.sim-lb-list li.rank-1 { border-left: 3px solid #ffd700; background: rgba(255,215,0,0.08); }
+.sim-lb-list li.rank-2 { border-left: 3px solid #c0c0c0; background: rgba(192,192,192,0.05); }
+.sim-lb-list li.rank-3 { border-left: 3px solid #cd7f32; background: rgba(205,127,50,0.05); }
+.sim-lb-rank { font-weight: 900; color: #ffb020; text-align: center; }
+.sim-lb-name { color: var(--text-1); }
+.sim-lb-diff { font-size: 10px; color: var(--text-3); text-transform: uppercase; }
+.sim-lb-score { color: #00ff44; font-weight: 900; text-shadow: 0 0 6px rgba(0,255,68,0.5); }
+.sim-lb-empty {
+    text-align: center;
+    color: var(--text-3);
+    font-size: 12px;
+    padding: var(--s-5);
+    font-style: italic;
+}
+
+/* ============================================================
+   МУЛЬТИПЛЕЕР
+   ============================================================ */
+.sim-mp-scoreboard {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: var(--s-3);
+    align-items: center;
+    padding: var(--s-3);
+    background: linear-gradient(135deg, #0a0e14, #1a1f2e);
+    border: 2px solid var(--border-2);
+    border-radius: var(--r);
+    margin-bottom: var(--s-3);
+}
+.sim-mp-player {
+    text-align: center;
+    padding: var(--s-2);
+    border-radius: var(--r-sm);
+    transition: all .2s;
+}
+.sim-mp-player.active {
+    background: rgba(0, 212, 255, 0.12);
+    box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+}
+.sim-mp-name {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 4px;
+}
+.sim-mp-pts {
+    font-family: var(--font-mono);
+    font-size: 24px;
+    font-weight: 900;
+    color: #00ff44;
+    text-shadow: 0 0 8px rgba(0,255,68,0.5);
+}
+.sim-mp-vs {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 900;
+    color: #ff3344;
+    text-shadow: 0 0 10px #ff3344;
+    letter-spacing: 2px;
+}
+.sim-mp-round {
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: var(--s-3);
+}
+
+/* ============================================================
+   СПИСОК ПРОДУКТОВ / МОИХ РЕЦЕПТОВ
+   ============================================================ */
+.sim-prod-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 200px;
+    overflow-y: auto;
+    padding: var(--s-2);
+    background: var(--bg-0);
+    border-radius: var(--r-sm);
+    margin-bottom: var(--s-3);
+}
+.sim-prod-item {
+    display: grid;
+    grid-template-columns: 1fr auto auto auto auto;
+    gap: var(--s-2);
+    align-items: center;
+    padding: 6px 8px;
+    background: var(--bg-2);
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+}
+.sim-prod-item b { color: var(--text-1); font-family: var(--font-ui); font-size: 12px; }
+.sim-prod-item span { color: var(--text-3); }
+.sim-prod-item .sim-prod-del {
+    background: none;
+    border: none;
+    color: var(--danger);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 5px;
+    border-radius: 3px;
+}
+.sim-prod-item .sim-prod-del:hover { background: rgba(255, 71, 87, 0.12); }
+.sim-prod-item.is-default { opacity: 0.5; }
+
+/* ============================================================
+   РЕТРО-ОВЕРЛЕЙ
+   ============================================================ */
+.sim-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 20000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(4px);
+    padding: var(--s-3);
+    overflow: hidden;
+}
+.sim-overlay.hidden { display: none; }
+.sim-overlay-flash {
+    position: absolute;
+    inset: 0;
+    background: #fff;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 3;
+}
+.sim-overlay.flash .sim-overlay-flash { animation: simFlash 0.5s ease-out; }
+@keyframes simFlash {
+    0% { opacity: 0; }
+    15% { opacity: 0.9; }
+    100% { opacity: 0; }
+}
+.sim-overlay-crt {
+    position: relative;
+    padding: var(--s-5) var(--s-6);
+    border: 4px solid;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.9);
+    text-align: center;
+    max-width: 90vw;
+    z-index: 2;
+}
+.sim-overlay-crt::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+        0deg, rgba(0,0,0,.25) 0px, rgba(0,0,0,.25) 1px, transparent 1px, transparent 3px
+    );
+    pointer-events: none;
+    border-radius: 4px;
+}
+.sim-overlay-badge {
+    font-size: 28px;
+    margin-bottom: var(--s-2);
+    opacity: 0;
+    animation: simBadgeDrop 0.6s cubic-bezier(0.5, 1.7, 0.6, 1) 0.1s forwards;
+}
+.sim-overlay-text {
+    font-family: var(--font-mono);
+    font-size: 52px;
+    font-weight: 900;
+    letter-spacing: 8px;
+    line-height: 1;
+    margin-bottom: var(--s-3);
+}
+.sim-overlay-points {
+    font-family: var(--font-mono);
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    opacity: 0;
+    animation: simPointsAppear 0.4s ease 0.5s forwards;
+}
+.sim-overlay-sub {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    letter-spacing: 2px;
+    margin-top: var(--s-2);
+    opacity: 0;
+    animation: simPointsAppear 0.4s ease 0.8s forwards;
+}
+@keyframes simPointsAppear {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@keyframes simBadgeDrop {
+    0% { transform: scale(0) rotate(-180deg); opacity: 0; }
+    70% { transform: scale(1.4) rotate(10deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+
+/* Победа */
+.sim-overlay.win .sim-overlay-crt {
+    border-color: #00ff44;
+    box-shadow:
+        0 0 40px rgba(0, 255, 68, 0.6),
+        inset 0 0 40px rgba(0, 255, 68, 0.1);
+    animation:
+        simWinAppear 0.5s cubic-bezier(0.5, 1.5, 0.5, 1),
+        simWinPulse 1s ease-in-out 0.6s infinite alternate;
+}
+.sim-overlay.win .sim-overlay-text {
+    color: #00ff44;
+    animation: simWinGlow 0.5s ease-in-out infinite alternate;
+}
+.sim-overlay.win .sim-overlay-points {
+    color: #00ff44;
+    text-shadow: 0 0 8px rgba(0, 255, 68, 0.8);
+}
+.sim-overlay.win .sim-overlay-sub { color: #7fffaa; text-shadow: 0 0 8px rgba(0,255,68,0.6); }
+.sim-overlay.win .sim-overlay-crt::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(120deg,
+        transparent 30%,
+        rgba(255,255,255,0.15) 50%,
+        transparent 70%);
+    animation: simSparkle 1.4s ease-in-out infinite;
+    pointer-events: none;
+    border-radius: 4px;
+}
+
+/* Провал */
+.sim-overlay.lose .sim-overlay-crt {
+    border-color: #ff3344;
+    box-shadow:
+        0 0 40px rgba(255, 51, 68, 0.6),
+        inset 0 0 40px rgba(255, 51, 68, 0.1);
+    animation:
+        simLoseAppear 0.4s ease,
+        simScreenShake 0.4s ease 0.4s;
+}
+.sim-overlay.lose .sim-overlay-text {
+    color: #ff3344;
+    animation: simLoseShake 0.12s linear 5;
+}
+.sim-overlay.lose .sim-overlay-points {
+    color: #ffb020;
+    text-shadow: 0 0 8px rgba(255, 176, 32, 0.6);
+}
+.sim-overlay.lose .sim-overlay-sub { color: #ff9ba5; }
+
+@keyframes simWinAppear {
+    0% { transform: scale(0.3) rotate(-8deg); opacity: 0; }
+    60% { transform: scale(1.15) rotate(2deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+@keyframes simWinGlow {
+    from { text-shadow: 0 0 20px #00ff44, 0 0 40px #00ff44, 4px 4px 0 #008822; }
+    to   { text-shadow: 0 0 30px #00ff44, 0 0 60px #00ff44, 0 0 90px #00ff44, 4px 4px 0 #008822; }
+}
+@keyframes simWinPulse {
+    from { transform: scale(1); }
+    to   { transform: scale(1.02); }
+}
+@keyframes simSparkle {
+    0%, 100% { transform: translateX(-100%); }
+    50% { transform: translateX(100%); }
+}
+@keyframes simLoseAppear {
+    0% { transform: scale(0.5); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+@keyframes simLoseShake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-10px); }
+    75% { transform: translateX(10px); }
+}
+@keyframes simScreenShake {
+    0%, 100% { transform: translate(0, 0) rotate(0); }
+    20% { transform: translate(-6px, 3px) rotate(-1deg); }
+    40% { transform: translate(5px, -4px) rotate(1deg); }
+    60% { transform: translate(-4px, -2px) rotate(-0.5deg); }
+    80% { transform: translate(3px, 2px) rotate(0.5deg); }
+}
+
+/* Частицы */
+.sim-particles {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+}
+.sim-particle {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    transform: rotate(45deg);
+    animation: simParticleFall 1.8s ease-in forwards;
+}
+@keyframes simParticleFall {
+    0%   { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; }
+    100% { transform: translate(var(--tx), var(--ty)) rotate(720deg) scale(0.3); opacity: 0; }
+}
+
+/* ============================================================
+   АВАРИЯ «ЗАМЯТИЕ ФЛАКОНА»
+   ============================================================ */
+.sim-overlay.accident .sim-overlay-crt {
+    border-color: #ff5500;
+    box-shadow:
+        0 0 50px rgba(255, 85, 0, 0.9),
+        0 0 100px rgba(255, 51, 68, 0.5),
+        inset 0 0 60px rgba(255, 85, 0, 0.15);
+    animation:
+        simAccidentAppear 0.5s cubic-bezier(0.5, 1.7, 0.6, 1),
+        simAccidentShake 0.15s linear 3 0.5s;
+}
+.sim-overlay.accident .sim-overlay-text {
+    color: #ff5500;
+    font-size: 42px;
+    letter-spacing: 4px;
+    text-shadow:
+        0 0 20px #ff5500,
+        0 0 40px #ff5500,
+        0 0 80px #ff3300,
+        4px 4px 0 #881100;
+    animation: simAccidentBlink 0.3s linear 4;
+}
+.sim-overlay.accident .sim-overlay-points {
+    color: #ffb020;
+    font-size: 18px;
+    text-shadow: 0 0 10px rgba(255, 176, 32, 0.8);
+}
+.sim-overlay.accident .sim-overlay-sub {
+    color: #ff8800;
+    font-weight: 900;
+    letter-spacing: 3px;
+    text-shadow: 0 0 10px rgba(255, 136, 0, 0.7);
+    font-size: 14px;
+}
+.sim-overlay.accident .sim-overlay-badge {
+    font-size: 56px;
+    animation:
+        simBadgeDrop 0.6s cubic-bezier(0.5, 1.7, 0.6, 1) 0.1s forwards,
+        simAccidentSpin 1.5s linear infinite 0.7s;
+}
+.sim-overlay.accident .sim-overlay-flash { background: #ff8800; }
+
+@keyframes simAccidentAppear {
+    0% { transform: scale(0.3) rotate(-10deg); opacity: 0; }
+    60% { transform: scale(1.2) rotate(3deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+@keyframes simAccidentShake {
+    0%, 100% { transform: translateX(0) rotate(0); }
+    25% { transform: translateX(-10px) rotate(-1deg); }
+    75% { transform: translateX(10px) rotate(1deg); }
+}
+@keyframes simAccidentBlink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+}
+@keyframes simAccidentSpin {
+    0% { transform: rotate(0); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ============================================================
+   АВАРИЯ «ПЕРЕГРУЗ НАСОСА»
+   ============================================================ */
+.sim-overlay.overload .sim-overlay-crt {
+    border-color: #ffb020;
+    box-shadow:
+        0 0 50px rgba(255, 176, 32, 0.9),
+        0 0 100px rgba(255, 85, 0, 0.5),
+        inset 0 0 60px rgba(255, 176, 32, 0.15);
+    animation:
+        simAccidentAppear 0.5s cubic-bezier(0.5, 1.7, 0.6, 1),
+        simAccidentShake 0.15s linear 3 0.5s;
+}
+.sim-overlay.overload .sim-overlay-text {
+    color: #ffb020;
+    font-size: 40px;
+    letter-spacing: 3px;
+    text-shadow:
+        0 0 20px #ffb020,
+        0 0 40px #ff8800,
+        0 0 80px #ff5500,
+        4px 4px 0 #885500;
+    animation: simAccidentBlink 0.3s linear 4;
+}
+.sim-overlay.overload .sim-overlay-points {
+    color: #ff5500;
+    font-size: 18px;
+    text-shadow: 0 0 10px rgba(255, 85, 0, 0.8);
+    font-weight: 900;
+}
+.sim-overlay.overload .sim-overlay-sub {
+    color: #ff8800;
+    font-weight: 900;
+    letter-spacing: 3px;
+    text-shadow: 0 0 10px rgba(255, 136, 0, 0.7);
+    font-size: 14px;
+}
+.sim-overlay.overload .sim-overlay-badge {
+    font-size: 56px;
+    animation:
+        simBadgeDrop 0.6s cubic-bezier(0.5, 1.7, 0.6, 1) 0.1s forwards,
+        simAccidentSpin 1.5s linear infinite 0.7s;
+}
+.sim-overlay.overload .sim-overlay-flash { background: #ffb020; }
+
+/* ============================================================
+   АНИМАЦИЯ МЯТЫХ ФЛАКОНОВ
+   ============================================================ */
+.sim-crush-anim {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    pointer-events: none;
+    z-index: 1;
+}
+.sim-crush-anim.hidden { display: none; }
+
+.sim-crush-bottle {
+    width: 38px;
+    height: 90px;
+    background: linear-gradient(180deg, rgba(0, 212, 255, 0.7) 0%, rgba(0, 100, 180, 0.6) 100%);
+    border: 2px solid #00d4ff;
+    border-radius: 6px 6px 14px 14px;
+    position: relative;
+    box-shadow:
+        0 0 15px rgba(0, 212, 255, 0.5),
+        inset 0 0 15px rgba(0, 212, 255, 0.2);
+    animation: simBottleCrush 0.9s cubic-bezier(0.5, 1.7, 0.6, 1) forwards;
+    transform-origin: bottom center;
+}
+.sim-crush-bottle::before {
+    content: "";
+    position: absolute;
+    top: -16px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 16px;
+    height: 16px;
+    background: rgba(0, 212, 255, 0.7);
+    border: 2px solid #00d4ff;
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+}
+.sim-crush-bottle::after {
+    content: "";
+    position: absolute;
+    top: -24px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 20px;
+    height: 10px;
+    background: #ff5500;
+    border-radius: 2px;
+    box-shadow: 0 0 10px rgba(255, 85, 0, 0.6);
+}
+.sim-crush-bottle:nth-child(1) { animation-delay: 0.0s; }
+.sim-crush-bottle:nth-child(2) { animation-delay: 0.15s; }
+.sim-crush-bottle:nth-child(3) { animation-delay: 0.30s; }
+.sim-crush-bottle:nth-child(4) { animation-delay: 0.45s; }
+.sim-crush-bottle:nth-child(5) { animation-delay: 0.60s; }
+
+@keyframes simBottleCrush {
+    0% {
+        transform: scaleY(1) scaleX(1) rotate(0deg);
+        opacity: 1;
+    }
+    30% { transform: scaleY(0.85) scaleX(1.3) rotate(-6deg); }
+    60% {
+        transform: scaleY(0.55) scaleX(1.8) rotate(10deg);
+        opacity: 0.85;
+    }
+    100% {
+        transform: scaleY(0.3) scaleX(2.2) rotate(-15deg);
+        opacity: 0;
+    }
+}
+
+/* ============================================================
    АДАПТИВНОСТЬ
    ============================================================ */
 @media (max-width: 500px) {
@@ -1240,6 +2380,38 @@ button { cursor: pointer; }
     .help-toc a { font-size: 11px; padding: 5px 8px; }
     .journal-entry-grid { grid-template-columns: 1fr; }
     .plc-send-btn { font-size: 9px; padding: 3px 7px; }
+    .sim-stats { grid-template-columns: 1fr 1fr; }
+    .sim-hero-title { font-size: 20px; letter-spacing: 2px; }
+    .sim-hero-sub { font-size: 10px; letter-spacing: 3px; }
+    .sim-mp-scoreboard { grid-template-columns: 1fr; gap: var(--s-2); }
+    .sim-mp-vs { display: none; }
+    .sim-prod-item { grid-template-columns: 1fr auto; }
+    .sim-prod-item span { display: none; }
+    .sim-input-hint { right: -16px; font-size: 14px; }
+    .sim-overlay-text { font-size: 32px; letter-spacing: 4px; }
+    .sim-overlay-points { font-size: 16px; }
+    .sim-overlay.accident .sim-overlay-text { font-size: 24px; letter-spacing: 2px; }
+    .sim-overlay.accident .sim-overlay-sub { font-size: 11px; letter-spacing: 2px; }
+    .sim-overlay.overload .sim-overlay-text { font-size: 22px; letter-spacing: 2px; }
+    .sim-crush-anim { gap: 12px; }
+    .sim-crush-bottle { width: 26px; height: 60px; }
+    .sim-crush-bottle::before { width: 12px; height: 12px; top: -12px; }
+    .sim-crush-bottle::after { width: 16px; height: 8px; top: -18px; }
+    .plc-delay-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .plc-delay-cell {
+        width: 100%;
+        justify-content: space-between;
+        margin-left: 0;
+    }
+    .plc-delay-tip {
+        font-size: 10px;
+        white-space: normal;
+        text-align: right;
+        max-width: 60%;
+    }
 }
 @media (max-width: 380px) {
     .field-row { grid-template-columns: 1fr; }
