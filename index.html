@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#0a0e14">
     <title>Mobile Assistant 2.0</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+    <link rel="apple-touch-icon" href="icon.svg">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Assistant">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -21,6 +27,9 @@
     </button>
     <button id="btn-tab-help" class="tab" onclick="switchTab('help')" role="tab">
         <span class="tab-icon">❓</span><span class="tab-label">Справка</span>
+    </button>
+    <button id="btn-share" class="tab" onclick="shareApp()" title="Поделиться ссылкой">
+        <span class="tab-icon">📱</span><span class="tab-label">Ссылка</span>
     </button>
 </nav>
 
@@ -55,21 +64,21 @@
 
             <div class="field-row">
                 <div class="field">
-                    <label for="volumeInput">Объём заполнения, мл</label>
-                    <input id="volumeInput" type="number" step="1" value="600" min="50" max="6000"
-                           oninput="syncVolumeWeight('vol')">
+                    <label for="bottleVolumeInput">Объём флакона, мл</label>
+                    <input id="bottleVolumeInput" type="number" step="1" value="600" min="50" max="6000"
+                           oninput="runUniversalCalculation()">
                 </div>
                 <div class="field">
-                    <label for="weightInput">Целевой вес, г</label>
-                    <input id="weightInput" type="number" step="1" value="600" min="50" max="6000"
-                           oninput="syncVolumeWeight('weight')">
+                    <label for="targetWeightInput">Целевой вес, г</label>
+                    <input id="targetWeightInput" type="number" step="0.1" value="600" min="10" max="6000"
+                           oninput="runUniversalCalculation()">
                 </div>
             </div>
 
             <div class="field">
                 <label for="densityInput">Плотность продукта, г/мл</label>
                 <input id="densityInput" type="number" step="0.01" value="1.00" min="0.75" max="1.30"
-                       oninput="syncVolumeWeight('density')">
+                       oninput="runUniversalCalculation()">
                 <p class="field-hint">Вода 1.00 · Мыло 1.02–1.05 · Гели/ПАВ 0.98–1.10</p>
             </div>
 
@@ -80,6 +89,11 @@
             </div>
 
             <p class="field-hint">💧 0 ед. — вода · 🍯 1450–1850 ед. — мыло</p>
+
+            <div class="calc-hint">
+                Объём заполнения (V = m / ρ):
+                <b id="fillVolumeHintValue">600.0 мл</b>
+            </div>
 
             <div id="viscosityNotice" class="alert alert-warning hidden">
                 Вязкость продукта превышает 1000 ед. Допускается режим верхнего налива для снижения износа привода траверсы.
@@ -104,7 +118,10 @@
             <div class="plc">
                 <header class="plc-head">
                     <span class="plc-brand">ПЛК</span>
-                    <span class="plc-mode">AUTO</span>
+                    <div class="plc-head-right">
+                        <span class="plc-mode">AUTO</span>
+                        <button class="plc-send-btn" onclick="openSendModal()" title="Отправить уставки в ПЛК">📤 Отправить</button>
+                    </div>
                 </header>
 
                 <div class="plc-screen">
@@ -133,7 +150,7 @@
                         <div class="plc-row"><span>Верх. полож. сопла</span><b id="val_wait_point">0</b></div>
                         <div class="plc-row"><span>Верхний налив</span><b id="val_top_pour">0</b></div>
                         <div class="plc-row"><span>Нижн. полож. сопла</span><b id="val_bottom_pos">0</b></div>
-                        <div class="plc-row"><span>Целевой вес, г</span><b id="val_total_weight">0</b></div>
+                        <div class="plc-row"><span>Общий объём заполнения, мл</span><b id="val_fill_volume">0.0</b></div>
 
                         <div class="plc-divider"></div>
 
@@ -413,6 +430,10 @@
             Все расчёты выполняются на устройстве. Никаких данных в интернет не уходит.
             Калибровки и журнал хранятся в памяти браузера.
         </p>
+        <p class="help-p">
+            Приложение можно <b>установить на домашний экран</b> телефона или планшета —
+            тогда оно работает офлайн, как обычное приложение.
+        </p>
     </div>
 
     <div class="card" id="help-filling">
@@ -421,21 +442,27 @@
         <ul class="help-list">
             <li><b>Технологическая линия</b> — 1.1 … 1.6. От неё зависят диапазоны скоростей и логика расчёта.</li>
             <li><b>Высота флакона</b> — по рулетке, в миллиметрах.</li>
-            <li><b>Объём заполнения</b> и <b>целевой вес</b> — связаны через плотность. Вводите то, что указано в карте розлива, второе подтянется автоматически.</li>
-            <li><b>Плотность продукта</b> — 0.75–1.30 г/мл. Вода 1.00, мыло 1.02–1.05, гели 0.98–1.10.</li>
+            <li><b>Объём флакона</b> — справочная величина (сколько лезет в бутылку).</li>
+            <li><b>Целевой вес</b> — масса, указанная в карте розлива.</li>
+            <li><b>Плотность</b> — связывает массу и объём. Линия флоуметрическая и считает объём, поэтому <b>V = m / ρ</b>. Результат показывается в панели ввода и на экране ПЛК в строке «Общий объём заполнения».</li>
             <li><b>Вязкость</b> — условные единицы. 0 — вода, 1450–1850 — мыло.</li>
         </ul>
         <h3 class="subsection-title">Как читать экран ПЛК</h3>
         <ul class="help-list">
             <li>Левая колонка — скорости подъёма сопел и их положения (1/2/3 — три ступени).</li>
             <li>Правая колонка — скорости насоса, объёмы перехода, тайминги шиберов, скорости конвейера.</li>
-            <li><b>Целевой вес</b> — масса, а не объём. Совпадает с картой розлива.</li>
+            <li><b>Общий объём заполнения</b> — расчётный объём в мл, который нужно налить в каждый флакон.</li>
             <li><b>Задержка подъёма</b> — время погружения сопла. Ниже 0.4 с — критический режим.</li>
         </ul>
         <div class="callout callout-warning">
             <b>Важно:</b> если рекомендуемая задержка меньше 0.4 с — не запускайте линию.
             Это ведёт к износу привода траверсы.
         </div>
+        <h3 class="subsection-title">Отправка в ПЛК</h3>
+        <ul class="help-list">
+            <li>Кнопка <b>«📤 Отправить»</b> в шапке экрана ПЛК — открывает список уставок.</li>
+            <li>Сейчас уставки можно скопировать и передать вручную. Реальная отправка — после интеграции с контроллером.</li>
+        </ul>
     </div>
 
     <div class="card" id="help-labeler">
@@ -467,13 +494,13 @@
     <div class="card" id="help-eng">
         <h2 class="card-title">🔧 Инженерное меню</h2>
         <p class="help-p">
-            Вход — кнопка <b>⚙</b> в правом нижнем углу. PIN по умолчанию <b>2801</b>.
-            PIN спрашивается один раз за сессию браузера; после перезагрузки — снова.
+            Вход — кнопка <b>⚙</b> в правом нижнем углу. Доступ защищён PIN-кодом.
+            PIN спрашивается один раз за сессию браузера; после перезагрузки страницы — снова.
         </p>
         <h3 class="subsection-title">Калибровка этикетовщика</h3>
         <ul class="help-list">
             <li>Для каждой линии задайте <b>3–5 точек</b>: частота на панели (Гц) → измеренная скорость (м/мин).</li>
-            <li>Приложение строит линейную регрессию и показывает <b>R²</b>. Если R² < 0.98 — перепроверьте замеры.</li>
+            <li>Приложение строит линейную регрессию и показывает <b>R²</b>. Если R² &lt; 0.98 — перепроверьте замеры.</li>
             <li><b>Максимум Гц</b> для каждого привода задаётся вручную — у разных линий он разный.</li>
             <li>После заполнения — «Сохранить». Коэффициенты работают только на этом устройстве.</li>
         </ul>
@@ -482,10 +509,11 @@
             <li><b>Экспорт ▾</b> → «все линии» или «текущая линия» — выгружает JSON.</li>
             <li><b>Импорт</b> — принимает только линии 1.1 … 1.6. Неизвестные ключи игнорируются с уведомлением.</li>
         </ul>
-        <h3 class="subsection-title">Смена PIN</h3>
+        <h3 class="subsection-title">PIN-код</h3>
         <ul class="help-list">
-            <li>Внизу меню — «Сменить PIN». Нужно ввести текущий и дважды новый (4–6 цифр).</li>
-            <li>PIN хранится в памяти браузера. Если забыли — очистите данные сайта (сбросит всё, включая калибровку).</li>
+            <li>PIN задаёт инженер при первом запуске приложения.</li>
+            <li>Сменить PIN можно внизу инженерного меню — «Сменить PIN».</li>
+            <li>PIN хранится в памяти браузера. Если забыли — обратитесь к инженеру, который настраивал приложение.</li>
         </ul>
     </div>
 
@@ -508,8 +536,8 @@
         <h2 class="card-title">❓ Частые вопросы</h2>
 
         <details class="faq-item">
-            <summary>Почему рекомендуемые значения не совпадают с тем, что реально работает?</summary>
-            <p>Приложение даёт <b>рекомендацию</b> по математической модели. Реальное поведение зависит от состояния механики, износа насоса, температуры продукта. Если ваше значение устойчиво отличается — используйте его и по возможности сообщите инженеру для калибровки.</p>
+            <summary>Почему рекомендуемые значения не совпадают с реальными?</summary>
+            <p>Приложение даёт <b>рекомендацию</b> по математической модели. Реальное поведение зависит от состояния механики, износа насоса, температуры продукта. Если ваше значение устойчиво отличается — используйте его и сообщите инженеру для калибровки.</p>
         </details>
 
         <details class="faq-item">
@@ -518,18 +546,18 @@
         </details>
 
         <details class="faq-item">
+            <summary>Работает ли приложение без интернета?</summary>
+            <p>Да, если вы установили его на домашний экран (через меню браузера «Добавить на главный экран»). После установки приложение работает офлайн.</p>
+        </details>
+
+        <details class="faq-item">
             <summary>Можно ли использовать на нескольких устройствах?</summary>
             <p>Да, но калибровка и журнал хранятся локально. Чтобы перенести — экспортируйте JSON на одном устройстве и импортируйте на другом.</p>
         </details>
 
         <details class="faq-item">
-            <summary>Пропали коэффициенты после обновления браузера или очистки истории</summary>
-            <p>localStorage очищается вместе с данными сайта. Если у вас был экспорт — восстановите импортом.</p>
-        </details>
-
-        <details class="faq-item">
-            <summary>Как считается вес?</summary>
-            <p>M = V × ρ, где V — объём заполнения, ρ — плотность. Линия флоуметрическая и считает объём, а карта розлива задаёт вес — приложение переводит одно в другое.</p>
+            <summary>Как считается вес и объём заполнения?</summary>
+            <p>Карта розлива задаёт массу (г). Линия флоуметрическая, считает объём (мл). Связь: <b>V = m / ρ</b>, где ρ — плотность продукта.</p>
         </details>
 
         <details class="faq-item">
@@ -548,6 +576,45 @@
 <div class="float-actions">
     <button id="journal-btn" class="float-btn" onclick="openJournal()" title="Журнал наладок">🗒</button>
     <button id="eng-gear-btn" class="float-btn" onclick="openEngMenu()" title="Инженерное меню">⚙</button>
+</div>
+
+<!-- ============================================================
+     МОДАЛКА: ОТПРАВКА В ПЛК
+     ============================================================ -->
+<div id="send-modal-overlay" class="modal-overlay hidden">
+    <div class="modal">
+        <header class="modal-head">
+            <h2>📤 Отправка в ПЛК</h2>
+            <button class="modal-close" onclick="closeSendModal()">✕</button>
+        </header>
+        <div class="modal-body">
+            <p class="modal-text">
+                Ниже — уставки, которые будут переданы в контроллер линии.
+                <b>Рекомендуется проверить перед отправкой.</b>
+            </p>
+
+            <div id="send-params-block" class="send-block">
+                <div class="send-section">
+                    <h4>Налив · скорости и позиции</h4>
+                    <ul id="send-list-main" class="send-list"></ul>
+                </div>
+                <div class="send-section">
+                    <h4>Налив · тайминги</h4>
+                    <ul id="send-list-timing" class="send-list"></ul>
+                </div>
+            </div>
+
+            <div class="alert alert-warning">
+                <strong>Внимание:</strong> реальная отправка в ПЛК будет доступна после интеграции с контроллером линии.
+                Сейчас уставки можно скопировать и передать вручную.
+            </div>
+
+            <div class="modal-actions">
+                <button onclick="copySendParams()" class="btn btn-primary btn-block">📋 Копировать всё</button>
+                <button onclick="closeSendModal()" class="btn btn-ghost btn-block">Закрыть</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- ============================================================
