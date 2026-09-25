@@ -209,6 +209,14 @@ function runUniversalCalculation() {
     ls2 = Math.min(ls2, 100);
     ls3 = Math.min(ls3, 100);
 
+    // === Минимально безопасная задержка подъёма по вязкости ===
+    const delayMinSafe = visc < 800
+        ? 3.0 - (visc / 800) * 1.5
+        : 1.5;
+    if (delay < delayMinSafe) {
+        delay = parseFloat(delayMinSafe.toFixed(1));
+    }
+
     let t2 = Math.round(vol * k_t2);
     let t3 = Math.round(vol * k_t3);
 
@@ -272,7 +280,7 @@ function runUniversalCalculation() {
 // ============================================================
 
 function switchTab(tabName) {
-    ['filling', 'labeling', 'capping', 'help'].forEach(t => {
+    ['filling', 'labeling', 'capping', 'simulator', 'help'].forEach(t => {
         const content = document.getElementById(`content-${t}`);
         const btn = document.getElementById(`btn-tab-${t}`);
         if (content) content.classList.toggle('tab-content-active', t === tabName);
@@ -734,7 +742,6 @@ function closeSendModal() {
 function renderSendParams() {
     const mainList = document.getElementById('send-list-main');
     const timingList = document.getElementById('send-list-timing');
-
     const get = (id) => document.getElementById(id)?.textContent || '—';
 
     mainList.innerHTML = `
@@ -787,7 +794,7 @@ function copySendParams() {
 }
 
 // ============================================================
-// 7. ПОДЕЛИТЬСЯ ССЫЛКОЙ (Web Share API)
+// 7. ПОДЕЛИТЬСЯ ССЫЛКОЙ
 // ============================================================
 
 function shareApp() {
@@ -798,7 +805,6 @@ function shareApp() {
     if (navigator.share) {
         navigator.share({ title, text, url }).catch(() => {});
     } else {
-        // Fallback: копируем в буфер
         navigator.clipboard.writeText(url).then(() => {
             alert('Ссылка скопирована:\n' + url);
         }).catch(() => {
@@ -816,17 +822,13 @@ const JOURNAL_MAX = 100;
 let journal = [];
 
 function loadJournal() {
-    try {
-        journal = JSON.parse(localStorage.getItem(JOURNAL_KEY)) || [];
-    } catch { journal = []; }
+    try { journal = JSON.parse(localStorage.getItem(JOURNAL_KEY)) || []; }
+    catch { journal = []; }
 }
 
 function saveJournalToStorage() {
-    try {
-        localStorage.setItem(JOURNAL_KEY, JSON.stringify(journal));
-    } catch (e) {
-        alert('Не удалось сохранить журнал (память браузера переполнена). Удалите старые записи.');
-    }
+    try { localStorage.setItem(JOURNAL_KEY, JSON.stringify(journal)); }
+    catch (e) { alert('Не удалось сохранить журнал (память браузера переполнена).'); }
 }
 
 function openJournal() {
@@ -872,11 +874,8 @@ function saveCurrentToJournal() {
     saveJournalToStorage();
 
     const overlay = document.getElementById('journal-overlay');
-    if (!overlay.classList.contains('hidden')) {
-        renderJournal();
-    } else {
-        alert('Сохранено в журнал.');
-    }
+    if (!overlay.classList.contains('hidden')) renderJournal();
+    else alert('Сохранено в журнал.');
 }
 
 function renderJournal() {
@@ -1320,17 +1319,11 @@ function importEngCoeffs() {
                 const skippedLines = [];
 
                 for (const line of Object.keys(data)) {
-                    if (!KNOWN_LINES.includes(line)) {
-                        skippedLines.push(line);
-                        continue;
-                    }
+                    if (!KNOWN_LINES.includes(line)) { skippedLines.push(line); continue; }
                     const drive = data[line];
                     const isValid = drive && typeof drive === 'object'
                         && ['conveyor','press','roller'].every(d => drive[d] && typeof drive[d] === 'object');
-                    if (!isValid) {
-                        skippedLines.push(line);
-                        continue;
-                    }
+                    if (!isValid) { skippedLines.push(line); continue; }
                     labelerCoeffs[line] = drive;
                     importedLines.push(line);
                 }
@@ -1349,8 +1342,7 @@ function importEngCoeffs() {
                 let msg = `Импортировано линий: ${importedLines.length}\n` +
                           importedLines.map(l => `  • ${l}`).join('\n');
                 if (skippedLines.length) {
-                    msg += `\n\nПропущено (неизвестные или повреждённые):\n` +
-                           skippedLines.map(l => `  • ${l}`).join('\n');
+                    msg += `\n\nПропущено:\n` + skippedLines.map(l => `  • ${l}`).join('\n');
                 }
                 alert(msg);
             } catch {
@@ -1429,8 +1421,7 @@ function submitPinChange() {
 
 function toggleExportMenu(event) {
     event.stopPropagation();
-    const menu = document.getElementById('export-dropdown');
-    menu.classList.toggle('hidden');
+    document.getElementById('export-dropdown').classList.toggle('hidden');
 }
 
 function closeExportMenu() {
@@ -1456,13 +1447,17 @@ document.addEventListener('keydown', (e) => {
     const pinChangeOverlay = document.getElementById('eng-pin-change-overlay');
     const journalOverlay = document.getElementById('journal-overlay');
     const sendOverlay = document.getElementById('send-modal-overlay');
+    const userRecipesOverlay = document.getElementById('user-recipes-overlay');
+    const simNameOverlay = document.getElementById('sim-name-overlay');
     const engOverlay = document.getElementById('eng-menu-overlay');
 
-    if (!confirmOverlay.classList.contains('hidden')) { engConfirmCancel(); return; }
-    if (!pinChangeOverlay.classList.contains('hidden')) { closePinChange(); return; }
-    if (!journalOverlay.classList.contains('hidden')) { closeJournal(); return; }
-    if (!sendOverlay.classList.contains('hidden')) { closeSendModal(); return; }
-    if (!engOverlay.classList.contains('hidden')) { closeEngMenu(); }
+    if (confirmOverlay && !confirmOverlay.classList.contains('hidden')) { engConfirmCancel(); return; }
+    if (pinChangeOverlay && !pinChangeOverlay.classList.contains('hidden')) { closePinChange(); return; }
+    if (userRecipesOverlay && !userRecipesOverlay.classList.contains('hidden')) { closeUserRecipes(); return; }
+    if (simNameOverlay && !simNameOverlay.classList.contains('hidden')) { simSkipName(); return; }
+    if (journalOverlay && !journalOverlay.classList.contains('hidden')) { closeJournal(); return; }
+    if (sendOverlay && !sendOverlay.classList.contains('hidden')) { closeSendModal(); return; }
+    if (engOverlay && !engOverlay.classList.contains('hidden')) { closeEngMenu(); }
 });
 
 ['journal-overlay', 'eng-menu-overlay', 'send-modal-overlay'].forEach(id => {
@@ -1483,12 +1478,1321 @@ window.addEventListener('beforeunload', (e) => {
 });
 
 // ============================================================
-// 13. ИНИЦИАЛИЗАЦИЯ
+// 13. ТРЕНАЖЁР НАЛИВА · ПОЛНАЯ ВЕРСИЯ 3.0
+// ============================================================
+
+const SIM_STORAGE_KEY      = 'line-assistant-sim-stats';
+const SIM_LB_KEY           = 'line-assistant-sim-leaderboard';
+const SIM_USER_RECIPES_KEY = 'line-assistant-user-recipes';
+
+const SIM_DIFFICULTIES = {
+    easy: {
+        name: 'НОВИЧОК',
+        tolerance: 0.20,
+        multiplier: 1,
+        fields: ['pump_speed_1', 'pump_speed_2', 'pump_speed_3']
+    },
+    medium: {
+        name: 'ОПЕРАТОР',
+        tolerance: 0.15,
+        multiplier: 1.5,
+        fields: ['pump_speed_1', 'pump_speed_2', 'pump_speed_3', 'lift_speed_1', 'lift_speed_2', 'shiber_open_in']
+    },
+    hard: {
+        name: 'МАСТЕР',
+        tolerance: 0.10,
+        multiplier: 2,
+        fields: [
+            'pump_speed_1', 'pump_speed_2', 'pump_speed_3',
+            'lift_speed_1', 'lift_speed_2', 'lift_speed_3',
+            'bottom_pos', 'top_pour', 'delay', 'shiber_open_in'
+        ]
+    }
+};
+
+const SIM_FIELD_LABELS = {
+    pump_speed_1:     '1. Скорость насоса',
+    pump_speed_2:     '2. Скорость насоса',
+    pump_speed_3:     '3. Скорость насоса',
+    lift_speed_1:     '1. Скорость подъёма',
+    lift_speed_2:     '2. Скорость подъёма',
+    lift_speed_3:     '3. Скорость подъёма',
+    bottom_pos:       'Нижн. положение сопла',
+    top_pour:         'Верхний налив',
+    delay:            'Задержка подъёма, с',
+    shiber_open_in:   'Откр. шибера вход, с'
+};
+
+// Ограничения ПЛК
+const SIM_PLC_LIMITS = {
+    pump_speed_1: 80,
+    pump_speed_2: 80,
+    pump_speed_3: 45
+};
+
+// Циклические подписи для аварии «Замятие флакона»
+const SIM_CRUSH_LABELS = [
+    'БРАТ, ТЫ ЧТО ТВОРИШЬ?!',
+    'БРАТ, ТЫ ФЛАКОНЫ МНЁШЬ!',
+    'БРАТ, ЗАДЕРЖКУ ПОДНИМИ!'
+];
+
+let simCrushLabelIndex = 0;
+
+function simComputeDelayMin(visc) {
+    return visc < 800
+        ? 3.0 - (visc / 800) * 1.5
+        : 1.5;
+}
+
+const SIM_ACCIDENTS = [
+    {
+        title: '⚠️ ПЕНА ПРИ НАЛИВЕ',
+        description: 'Пена. 1-я ступень слишком быстрая — снизьте её на 20%.',
+        field: 'pump_speed_1',
+        factor: 0.80
+    },
+    {
+        title: '⚠️ НЕДОЛИВ 5%',
+        description: 'Флаконы недолиты. Увеличьте 3-ю скорость на 10%.',
+        field: 'pump_speed_3',
+        factor: 1.10
+    },
+    {
+        title: '⚠️ ПЕРЕЛИВ',
+        description: 'Перелив через край. Уменьшите 2-ю скорость на 15%.',
+        field: 'pump_speed_2',
+        factor: 0.85
+    },
+    {
+        title: '⚠️ ПРОДОЛЖИТЕЛЬНЫЙ ПОДЪЁМ',
+        description: 'Сопло долго поднимается. Уменьшите задержку подъёма на 25%.',
+        field: 'delay',
+        factor: 0.75
+    },
+    {
+        title: '⚠️ НЕСТАБИЛЬНЫЙ ПОТОК',
+        description: 'Помпа пульсирует, поток неравномерный. 3-я скорость завышена на 15%.',
+        field: 'pump_speed_3',
+        factor: 1.15
+    }
+];
+
+let simState = { score: 0, streak: 0, wins: 0, attempts: 0, bestScore: 0 };
+let simCurrent = null;
+let simMode = 'classic';
+let simTrainingMode = false;
+let simPendingDifficulty = null;
+let simLeaderboard = [];
+let simUserRecipes = [];
+let simMP = null;
+
+// ---------- Загрузка / сохранение ----------
+
+function simLoadStats() {
+    try { simState = { ...simState, ...(JSON.parse(localStorage.getItem(SIM_STORAGE_KEY)) || {}) }; } catch {}
+    try { simLeaderboard = JSON.parse(localStorage.getItem(SIM_LB_KEY)) || []; } catch { simLeaderboard = []; }
+    try { simUserRecipes = JSON.parse(localStorage.getItem(SIM_USER_RECIPES_KEY)) || []; } catch { simUserRecipes = []; }
+}
+
+function simSaveStats() {
+    try { localStorage.setItem(SIM_STORAGE_KEY, JSON.stringify(simState)); } catch {}
+}
+
+function simSaveLeaderboard() {
+    try { localStorage.setItem(SIM_LB_KEY, JSON.stringify(simLeaderboard)); } catch {}
+}
+
+function simSaveUserRecipes() {
+    try { localStorage.setItem(SIM_USER_RECIPES_KEY, JSON.stringify(simUserRecipes)); } catch {}
+}
+
+function simUpdateStatsUI() {
+    document.getElementById('sim-stat-score').textContent    = simState.score;
+    document.getElementById('sim-stat-streak').textContent   = simState.streak;
+    document.getElementById('sim-stat-wins').textContent     = simState.wins;
+    document.getElementById('sim-stat-attempts').textContent = simState.attempts;
+}
+
+// ---------- Навигация ----------
+
+function simHideAll() {
+    ['sim-menu', 'sim-difficulty', 'sim-line-select', 'sim-task', 'sim-result',
+     'sim-leaderboard', 'sim-mp-setup', 'sim-mp-score'].forEach(id => {
+        document.getElementById(id)?.classList.add('hidden');
+    });
+}
+
+function simBackToMenu() {
+    simHideAll();
+    document.getElementById('sim-menu').classList.remove('hidden');
+    simUpdateStatsUI();
+}
+
+function simOpenDifficulty(mode) {
+    const training = (event && event.currentTarget && event.currentTarget.dataset.training === '1');
+    simTrainingMode = !!training;
+
+    simMode = mode;
+    simHideAll();
+    document.getElementById('sim-difficulty').classList.remove('hidden');
+    const title = simTrainingMode
+        ? '🎓 Режим: ТРЕНИРОВКА'
+        : (mode === 'accident' ? '⚠️ Режим: АВАРИЯ' : '🎯 Режим: КЛАССИКА');
+    document.getElementById('sim-diff-title').textContent = title;
+}
+
+function simOpenLeaderboard() {
+    simHideAll();
+    document.getElementById('sim-leaderboard').classList.remove('hidden');
+    simRenderLeaderboard();
+}
+
+function simRenderLeaderboard() {
+    const listEl = document.getElementById('sim-lb-list');
+    const emptyEl = document.getElementById('sim-lb-empty');
+
+    if (!simLeaderboard.length) {
+        listEl.innerHTML = '';
+        emptyEl.classList.remove('hidden');
+        return;
+    }
+    emptyEl.classList.add('hidden');
+    listEl.innerHTML = simLeaderboard.slice(0, 10).map((entry, i) => `
+        <li class="rank-${i + 1}">
+            <span class="sim-lb-rank">#${i + 1}</span>
+            <span class="sim-lb-name">${entry.name}</span>
+            <span class="sim-lb-diff">${entry.diff}</span>
+            <span class="sim-lb-score">${entry.score}</span>
+        </li>
+    `).join('');
+}
+
+function simClearLeaderboard() {
+    if (!confirm('Очистить таблицу лидеров?')) return;
+    simLeaderboard = [];
+    simSaveLeaderboard();
+    simRenderLeaderboard();
+}
+
+function simCheckHighScore() {
+    if (simState.score < 100) return false;
+    const worst = simLeaderboard.length >= 10 ? simLeaderboard[9].score : 0;
+    return simState.score > worst;
+}
+
+function simPushToLeaderboard(name) {
+    const diff = simCurrent ? simCurrent.difficultyConfig.name : '—';
+    simLeaderboard.push({ name: name || 'Аноним', score: simState.score, diff });
+    simLeaderboard.sort((a, b) => b.score - a.score);
+    if (simLeaderboard.length > 10) simLeaderboard = simLeaderboard.slice(0, 10);
+    simSaveLeaderboard();
+}
+
+// ---------- Запуск задания ----------
+
+function simStart(difficulty) {
+    simPendingDifficulty = difficulty;
+    simHideAll();
+    document.getElementById('sim-line-select').classList.remove('hidden');
+}
+
+function simPickLine(line) {
+    if (!simPendingDifficulty) return;
+    const difficulty = simPendingDifficulty;
+    simPendingDifficulty = null;
+
+    const diff = SIM_DIFFICULTIES[difficulty];
+    if (!diff) return;
+
+    const task = simGenerateTask(line);
+    const ideal = simCalculateIdeal(task.params);
+
+    let accident = null;
+    let brokenValue = null;
+    if (simMode === 'accident') {
+        accident = SIM_ACCIDENTS[Math.floor(Math.random() * SIM_ACCIDENTS.length)];
+        brokenValue = ideal[accident.field] * accident.factor;
+    }
+
+    simCurrent = {
+        difficulty,
+        difficultyConfig: diff,
+        task,
+        ideal,
+        accident,
+        brokenValue,
+        attemptIndex: simState.attempts + 1
+    };
+
+    simRenderTask();
+    simHideAll();
+    document.getElementById('sim-task').classList.remove('hidden');
+}
+
+function simGenerateTask(line) {
+    const userForLine = simUserRecipes.filter(r => r.line === line);
+    if (userForLine.length > 0 && Math.random() < 0.6) {
+        const r = userForLine[Math.floor(Math.random() * userForLine.length)];
+        return {
+            product: r,
+            params: {
+                line,
+                volume: r.volume,
+                height: r.height || 245,
+                density: r.density,
+                viscosity: r.viscosity
+            },
+            isUserRecipe: true
+        };
+    }
+
+    const volume   = Math.round((300 + Math.random() * 4700) / 50) * 50;
+    const height   = 200 + Math.round((Math.random() * 130) / 5) * 5;
+    const density  = parseFloat((0.95 + Math.random() * 0.15).toFixed(2));
+    const viscPick = Math.random();
+    let viscosity;
+    if (viscPick < 0.35)      viscosity = 0;
+    else if (viscPick < 0.55) viscosity = 500;
+    else if (viscPick < 0.75) viscosity = 1500;
+    else if (viscPick < 0.9)  viscosity = 2500;
+    else                      viscosity = 3500;
+
+    const names = ['Продукт А', 'Продукт Б', 'Партия №' + (100 + Math.floor(Math.random() * 900)),
+                   'Заказ №' + (1000 + Math.floor(Math.random() * 9000))];
+    const name = names[Math.floor(Math.random() * names.length)];
+
+    return {
+        product: { name, line, volume, density, viscosity },
+        params: { line, volume, height, density, viscosity },
+        isUserRecipe: false
+    };
+}
+
+function simCancel() {
+    simMP = null;
+    simPendingDifficulty = null;
+    simTrainingMode = false;
+    simBackToMenu();
+}
+
+// ---------- Расчёт идеала ----------
+
+function simCalculateIdeal(params) {
+    const saved = {
+        line:      document.getElementById('lineSelect').value,
+        height:    document.getElementById('bottleHeightInput').value,
+        bottleVol: document.getElementById('bottleVolumeInput').value,
+        weight:    document.getElementById('targetWeightInput').value,
+        density:   document.getElementById('densityInput').value,
+        visc:      document.getElementById('viscosityInput').value
+    };
+
+    document.getElementById('lineSelect').value        = params.line;
+    document.getElementById('bottleHeightInput').value = params.height;
+    document.getElementById('bottleVolumeInput').value = params.volume;
+    document.getElementById('targetWeightInput').value = Math.round(params.volume * params.density);
+    document.getElementById('densityInput').value      = params.density;
+    document.getElementById('viscosityInput').value    = params.viscosity;
+
+    runUniversalCalculation();
+
+    const pump2Text = document.getElementById('val_pump_speed_2').textContent;
+    let pump2Ideal;
+    if (pump2Text.includes('ДОН')) {
+        const match = pump2Text.match(/\(ДОН\.\)\s*([\d.]+)/);
+        pump2Ideal = match ? parseFloat(match[1]) : parseFloat(pump2Text) || 0;
+    } else {
+        pump2Ideal = parseFloat(pump2Text) || 0;
+    }
+
+    let shiberOpenIn = parseFloat(document.getElementById('val_shiber_open_in').textContent) || 0;
+    if (shiberOpenIn < 0.4) shiberOpenIn = 0.5;
+
+    const ideal = {
+        pump_speed_1: parseFloat(document.getElementById('val_pump_speed_1').textContent) || 0,
+        pump_speed_2: pump2Ideal,
+        pump_speed_3: parseFloat(document.getElementById('val_pump_speed_3').textContent) || 0,
+        lift_speed_1: parseInt(document.getElementById('val_lift_speed_1').textContent) || 0,
+        lift_speed_2: parseInt(document.getElementById('val_lift_speed_2').textContent) || 0,
+        lift_speed_3: parseInt(document.getElementById('val_lift_speed_3').textContent) || 0,
+        bottom_pos:   parseInt(document.getElementById('val_bottom_pos').textContent) || 0,
+        top_pour:     parseInt(document.getElementById('val_top_pour').textContent) || 0,
+        delay:        parseFloat(document.getElementById('sub_nozzle_lift_delay').textContent) || 0,
+        shiber_open_in: shiberOpenIn
+    };
+
+    document.getElementById('lineSelect').value        = saved.line;
+    document.getElementById('bottleHeightInput').value = saved.height;
+    document.getElementById('bottleVolumeInput').value = saved.bottleVol;
+    document.getElementById('targetWeightInput').value = saved.weight;
+    document.getElementById('densityInput').value      = saved.density;
+    document.getElementById('viscosityInput').value    = saved.visc;
+    runUniversalCalculation();
+
+    return ideal;
+}
+
+// ---------- Отрисовка задания ----------
+
+function simRenderTask() {
+    if (!simCurrent) return;
+    const { task, difficultyConfig, accident, brokenValue } = simCurrent;
+
+    document.getElementById('sim-task-diff').textContent = difficultyConfig.name;
+    const attemptLabel = simMP
+        ? `Раунд ${simMP.currentRound} · ${simMP.players[simMP.currentTurn].name}`
+        : `Задание ${simCurrent.attemptIndex}`;
+    document.getElementById('sim-task-progress').textContent = attemptLabel;
+
+    const streakEl = document.getElementById('sim-task-streak');
+    if (simState.streak >= 2 && !simMP) {
+        const mult = simGetStreakMultiplier();
+        streakEl.textContent = `🔥 x${simState.streak} · ×${mult}`;
+        streakEl.classList.remove('hidden');
+    } else {
+        streakEl.classList.add('hidden');
+    }
+
+    const titleEl = document.getElementById('sim-screen-title');
+    const listEl = document.getElementById('sim-product-list');
+    const p = task.product;
+    const prm = task.params;
+
+    if (simMode === 'accident' && accident) {
+        titleEl.textContent = accident.title;
+        listEl.innerHTML = `
+            <li style="grid-column: span 2; padding: 6px 0; color:#ffb020; font-family:var(--font-ui); font-size:12px; line-height:1.5;">
+                ${accident.description}
+            </li>
+            <li><span>Линия</span><b>Линия ${prm.line.replace('LINE_', '')}</b></li>
+            <li><span>Объём</span><b>${prm.volume} мл</b></li>
+            <li><span>Высота</span><b>${prm.height} мм</b></li>
+            <li><span>Плотность</span><b>${prm.density.toFixed(2)}</b></li>
+            <li><span>Вязкость</span><b>${prm.viscosity} ед.</b></li>
+            ${difficultyConfig.fields.includes('delay') ? `
+                <li style="border-top: 1px dashed rgba(255,176,32,0.3); padding-top: 4px; margin-top: 2px;">
+                    <span style="color: rgba(255,176,32,0.7);">⚠️ Мин. задержка подъёма</span>
+                    <b style="color: #ffb020;">${simComputeDelayMin(prm.viscosity).toFixed(1)} с</b>
+                </li>
+            ` : ''}
+            <li style="grid-column: span 2; border-top: 1px dashed rgba(255,176,32,0.3); padding-top: 6px; margin-top: 4px;">
+                <span style="color: #ffb020;">⚠️ Аварийное ${SIM_FIELD_LABELS[accident.field]}:</span>
+                <b style="color: #ff3344;">${accident.field === 'delay' ? brokenValue.toFixed(1) : Math.round(brokenValue)}</b>
+            </li>
+        `;
+    } else {
+        titleEl.textContent = '📋 ИСХОДНЫЕ ДАННЫЕ';
+        listEl.innerHTML = `
+            <li><span>Линия</span><b>Линия ${prm.line.replace('LINE_', '')}</b></li>
+            <li><span>Объём флакона</span><b>${prm.volume} мл</b></li>
+            <li><span>Высота флакона</span><b>${prm.height} мм</b></li>
+            <li><span>Плотность</span><b>${prm.density.toFixed(2)}</b></li>
+            <li><span>Вязкость</span><b>${prm.viscosity} ед.</b></li>
+            <li><span>Целевой вес (V×ρ)</span><b>${Math.round(prm.volume * prm.density)} г</b></li>
+            ${difficultyConfig.fields.includes('delay') ? `
+                <li style="border-top: 1px dashed rgba(255,176,32,0.3); padding-top: 4px; margin-top: 2px;">
+                    <span style="color: rgba(255,176,32,0.7);">⚠️ Мин. задержка подъёма</span>
+                    <b style="color: #ffb020;">${simComputeDelayMin(prm.viscosity).toFixed(1)} с</b>
+                </li>
+            ` : ''}
+            ${task.isUserRecipe ? `<li style="grid-column: span 2; text-align:center; font-size:10px; color:#66e3ff;">📝 Из моих рецептов</li>` : ''}
+        `;
+    }
+
+    const container = document.getElementById('sim-inputs');
+    container.innerHTML = '';
+    difficultyConfig.fields.forEach(field => {
+        const row = document.createElement('div');
+        row.className = 'sim-input-row';
+        const step = ['pump_speed_1','pump_speed_2','pump_speed_3','delay','shiber_open_in'].includes(field) ? '0.1' : '1';
+        const suffix = (field === 'delay' || field === 'shiber_open_in') ? ' с' : '';
+        row.innerHTML = `
+            <label for="sim-input-${field}">${SIM_FIELD_LABELS[field]}${suffix}</label>
+            <input id="sim-input-${field}" type="number" step="${step}" min="0" value="" autocomplete="off">
+        `;
+        container.appendChild(row);
+    });
+
+    document.getElementById('sim-hint').classList.add('hidden');
+
+    const trainBanner = document.getElementById('sim-training-info');
+    if (simTrainingMode) trainBanner.classList.remove('hidden');
+    else trainBanner.classList.add('hidden');
+
+    const limitsInfo = document.getElementById('sim-limits-info');
+    if (limitsInfo) {
+        limitsInfo.style.display = simMode === 'accident' ? 'none' : 'block';
+    }
+
+    const first = container.querySelector('input');
+    if (first) setTimeout(() => first.focus(), 200);
+}
+
+function simShowHint() {
+    if (!simCurrent) return;
+    const { difficulty, accident } = simCurrent;
+    let hintText;
+
+    if (simMode === 'accident' && accident) {
+        hintText = `💡 Авария в поле «${SIM_FIELD_LABELS[accident.field]}». Восстановите нормальное значение.`;
+    } else {
+        const hints = {
+            easy:   `💡 Вода: базовые скорости. Мыло: скорость ниже, 2-я — выше. ⚠️ ПЛК: насос 1 ≤ 80 · насос 2 ≤ 80 · насос 3 ≤ 45.`,
+            medium: `💡 Больше объём — выше 2-я скорость подъёма. Вязкий продукт — скорости ниже. ⚠️ Откр. шибера вход ≥ 0.4 с. Задержка подъёма: вода → 3.0 с, мыло → 1.5 с. Если сопла слишком глубоко погружаются — уменьшайте плавно по 0.2 с. Насос 1,2 ≤ 80 · насос 3 ≤ 45.`,
+            hard:   `💡 Позиция 2 = 20% высоты, позиция 3 = 80%. ⚠️ Откр. шибера вход ≥ 0.4 с. Задержка ≥ 3.0 − (вязкость/800)×1.5. Если сопла слишком глубоко — шаг 0.2 с. Насос 1,2 ≤ 80 · насос 3 ≤ 45.`
+        };
+        hintText = hints[difficulty];
+    }
+    const hintEl = document.getElementById('sim-hint');
+    hintEl.textContent = hintText;
+    hintEl.classList.remove('hidden');
+}
+
+// ---------- Проверка ----------
+
+function simGetStreakMultiplier() {
+    if (simState.streak >= 10) return 3;
+    if (simState.streak >= 5)  return 2;
+    if (simState.streak >= 3)  return 1.5;
+    return 1;
+}
+
+function simCheckPLCOverload(fields) {
+    for (const field of fields) {
+        const limit = SIM_PLC_LIMITS[field];
+        if (!limit) continue;
+        const input = document.getElementById(`sim-input-${field}`);
+        const value = parseFloat(input?.value);
+        if (isFinite(value) && value > limit) {
+            return { field, value, limit };
+        }
+    }
+    return null;
+}
+
+function simCheck() {
+    if (!simCurrent) return;
+    const { difficultyConfig, task, ideal } = simCurrent;
+    const target = task.ideal || ideal;
+
+    // Критическая проверка 1: Откр. шибера вход < 0.4 → замятие
+    if (difficultyConfig.fields.includes('shiber_open_in')) {
+        const shiberInput = document.getElementById('sim-input-shiber_open_in');
+        const shiberValue = parseFloat(shiberInput?.value);
+        if (isFinite(shiberValue) && shiberValue >= 0 && shiberValue < 0.4) {
+            simShowAccidentOverlay();
+            return;
+        }
+    }
+
+    // Критическая проверка 2: превышение максимума ПЛК → перегруз
+    const overloadedField = simCheckPLCOverload(difficultyConfig.fields);
+    if (overloadedField) {
+        simShowOverloadOverlay(overloadedField);
+        return;
+    }
+
+    let allOk = true;
+    const results = [];
+
+    document.querySelectorAll('.sim-input-hint, .sim-input-explain').forEach(el => el.remove());
+
+    const taskVisc = task.params ? task.params.viscosity : 0;
+
+    difficultyConfig.fields.forEach(field => {
+        const input = document.getElementById(`sim-input-${field}`);
+        const userValue = parseFloat(input.value);
+        const idealValue = target[field];
+
+        let ok = false, deviation = 0, delta = 0;
+        if (isFinite(userValue) && idealValue > 0) {
+            delta = userValue - idealValue;
+            deviation = Math.abs(delta) / idealValue;
+            ok = deviation <= difficultyConfig.tolerance;
+        }
+
+        let belowSafeDelay = false;
+        if (field === 'delay' && isFinite(userValue)) {
+            const delayMinSafe = simComputeDelayMin(taskVisc);
+            if (userValue < delayMinSafe) {
+                ok = false;
+                belowSafeDelay = true;
+            }
+        }
+
+        results.push({ field, userValue, idealValue, deviation, delta, ok, belowSafeDelay });
+        input.classList.remove('is-correct', 'is-wrong');
+        input.classList.add(ok ? 'is-correct' : 'is-wrong');
+
+        const row = input.closest('.sim-input-row');
+        const hintEl = document.createElement('span');
+        hintEl.className = 'sim-input-hint';
+        if (!isFinite(userValue)) {
+            hintEl.classList.add('down');
+            hintEl.textContent = '?';
+        } else if (ok) {
+            hintEl.classList.add('ok');
+            hintEl.textContent = '✓';
+        } else if (delta > 0) {
+            hintEl.classList.add('up');
+            hintEl.textContent = '↑';
+        } else {
+            hintEl.classList.add('down');
+            hintEl.textContent = '↓';
+        }
+        row.appendChild(hintEl);
+
+        if (!ok && isFinite(userValue) && idealValue > 0) {
+            const expl = document.createElement('div');
+            expl.className = 'sim-input-explain';
+            const dirText = delta > 0 ? 'уменьшить' : 'увеличить';
+            const diffAbs = Math.abs(delta);
+            const diffText = ['pump_speed_1','pump_speed_2','pump_speed_3'].includes(field)
+                ? diffAbs.toFixed(2)
+                : Math.round(diffAbs);
+            expl.innerHTML = `↑ <b>${dirText}</b> примерно на <b>${diffText}</b> (допуск ±${(difficultyConfig.tolerance*100).toFixed(0)}%)`;
+            row.appendChild(expl);
+        }
+
+        if (!ok) allOk = false;
+    });
+
+    if (simTrainingMode) {
+        simShowOverlay(allOk, 0, results, allOk ? 'train-win' : 'train-lose');
+        return;
+    }
+
+    simState.attempts++;
+    let points = 0;
+
+    if (allOk) {
+        const tightness = results.reduce((acc, r) => {
+            if (r.deviation <= 0.05) return acc + 2;
+            if (r.deviation <= difficultyConfig.tolerance / 2) return acc + 1;
+            return acc;
+        }, 0);
+        const perField = 100 + (tightness / results.length) * 100;
+        const streakMult = simGetStreakMultiplier();
+        points = Math.round(results.length * perField * difficultyConfig.multiplier * streakMult);
+
+        simState.score += points;
+        simState.streak++;
+        simState.wins++;
+    } else {
+        simState.streak = 0;
+    }
+
+    if (simState.score > simState.bestScore) simState.bestScore = simState.score;
+    simSaveStats();
+
+    let quality = 'fail';
+    if (allOk) {
+        const avgDev = results.reduce((a, r) => a + r.deviation, 0) / results.length;
+        if (avgDev <= 0.03)      quality = 'perfect';
+        else if (avgDev <= 0.07) quality = 'excellent';
+        else if (avgDev <= 0.12) quality = 'good';
+        else                     quality = 'ok';
+    }
+
+    simShowOverlay(allOk, points, results, quality);
+}
+
+// ---------- Авария: замятие флакона ----------
+
+function simShowAccidentOverlay() {
+    const overlay = document.getElementById('sim-overlay');
+    const badgeEl = document.getElementById('sim-overlay-badge');
+    const textEl = document.getElementById('sim-overlay-text');
+    const pointsEl = document.getElementById('sim-overlay-points');
+    const subEl = document.getElementById('sim-overlay-sub');
+    const particlesEl = document.getElementById('sim-particles');
+    const crushEl = document.getElementById('sim-crush-anim');
+
+    overlay.classList.remove('win', 'lose', 'flash', 'accident', 'overload');
+    void overlay.offsetWidth;
+    overlay.classList.add('accident', 'flash');
+    particlesEl.innerHTML = '';
+
+    badgeEl.textContent = '💥';
+    textEl.textContent = 'ЗАМЯТИЕ ФЛАКОНА';
+    pointsEl.textContent = 'ЗАДЕРЖКА < 0.4 с';
+
+    subEl.textContent = SIM_CRUSH_LABELS[simCrushLabelIndex];
+    simCrushLabelIndex = (simCrushLabelIndex + 1) % SIM_CRUSH_LABELS.length;
+
+    if (crushEl) {
+        crushEl.innerHTML = '';
+        crushEl.classList.remove('hidden');
+        for (let i = 0; i < 5; i++) {
+            const b = document.createElement('div');
+            b.className = 'sim-crush-bottle';
+            crushEl.appendChild(b);
+        }
+        setTimeout(() => {
+            crushEl.classList.add('hidden');
+            crushEl.innerHTML = '';
+        }, 1800);
+    }
+
+    simPlaySound('accident');
+    if (navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 500]);
+
+    simSpawnParticles(false, 50);
+
+    overlay.classList.remove('hidden');
+
+    if (!simTrainingMode) {
+        simState.attempts++;
+        simState.streak = 0;
+        simSaveStats();
+    }
+
+    setTimeout(() => {
+        overlay.classList.add('hidden');
+        simRenderAccidentResult();
+    }, 2800);
+}
+
+function simRenderAccidentResult() {
+    document.getElementById('sim-task').classList.add('hidden');
+    document.getElementById('sim-result').classList.remove('hidden');
+
+    const titleEl = document.getElementById('sim-result-title');
+    titleEl.textContent = '💥 ЗАМЯТИЕ ФЛАКОНА — БРАК';
+
+    const trainBadge = document.getElementById('sim-training-badge');
+    if (simTrainingMode) trainBadge.classList.remove('hidden');
+    else trainBadge.classList.add('hidden');
+
+    const shiberValue = parseFloat(document.getElementById('sim-input-shiber_open_in').value) || 0;
+
+    const body = document.getElementById('sim-result-body');
+    body.innerHTML = `
+        <div class="sim-result-row is-bad" style="border-left-width:5px; border-left-color:#ff5500;">
+            <span class="sim-result-label">Откр. шибера вход</span>
+            <span class="sim-result-user">${shiberValue.toFixed(1)} с</span>
+            <span class="sim-result-ideal">→ ≥ 0.4 с</span>
+            <span class="sim-result-delta"><span class="sim-arrow sim-arrow-up">!</span> КРИТИЧНО</span>
+        </div>
+    `;
+
+    const explainBlock = document.getElementById('sim-explain-block');
+    const explainList = document.getElementById('sim-explain-list');
+    explainList.innerHTML = `
+        <li class="is-danger"><b>Задержка открытия входного шибера ниже 0.4 с.</b> Шибер открывается мгновенно — продукт бьёт в флакон, давление сминает его.</li>
+        <li class="is-danger">Это критический режим. ПЛК может отклонить уставку или на линии произойдёт замятие.</li>
+        <li>Всегда проверяйте: <b>Откр. шибера вход ≥ 0.4 с</b>. Типовое значение — 0.5 с.</li>
+    `;
+    explainBlock.classList.remove('hidden');
+}
+
+// ---------- Авария: перегруз насоса ----------
+
+function simShowOverloadOverlay(overload) {
+    const overlay = document.getElementById('sim-overlay');
+    const badgeEl = document.getElementById('sim-overlay-badge');
+    const textEl = document.getElementById('sim-overlay-text');
+    const pointsEl = document.getElementById('sim-overlay-points');
+    const subEl = document.getElementById('sim-overlay-sub');
+    const particlesEl = document.getElementById('sim-particles');
+
+    overlay.classList.remove('win', 'lose', 'flash', 'accident', 'overload');
+    void overlay.offsetWidth;
+    overlay.classList.add('overload', 'flash');
+    particlesEl.innerHTML = '';
+
+    badgeEl.textContent = '⚡';
+    textEl.textContent = 'ПЕРЕГРУЗ НАСОСА';
+    pointsEl.textContent = `${SIM_FIELD_LABELS[overload.field]}: ${overload.value} > ${overload.limit}`;
+    subEl.textContent = 'ПЛК НЕ ПРИМЕТ ТАКУЮ УСТАВКУ!';
+
+    simPlaySound('overload');
+    if (navigator.vibrate) navigator.vibrate([200, 80, 200, 80, 400]);
+
+    simSpawnParticles(false, 40);
+
+    overlay.classList.remove('hidden');
+
+    if (!simTrainingMode) {
+        simState.attempts++;
+        simState.streak = 0;
+        simSaveStats();
+    }
+
+    setTimeout(() => {
+        overlay.classList.add('hidden');
+        simRenderOverloadResult(overload);
+    }, 2800);
+}
+
+function simRenderOverloadResult(overload) {
+    document.getElementById('sim-task').classList.add('hidden');
+    document.getElementById('sim-result').classList.remove('hidden');
+
+    const titleEl = document.getElementById('sim-result-title');
+    titleEl.textContent = '⚡ ПЕРЕГРУЗ НАСОСА — ОТКАЗ ПЛК';
+
+    const trainBadge = document.getElementById('sim-training-badge');
+    if (simTrainingMode) trainBadge.classList.remove('hidden');
+    else trainBadge.classList.add('hidden');
+
+    const body = document.getElementById('sim-result-body');
+    body.innerHTML = `
+        <div class="sim-result-row is-bad" style="border-left-width:5px; border-left-color:#ff5500;">
+            <span class="sim-result-label">${SIM_FIELD_LABELS[overload.field]}</span>
+            <span class="sim-result-user">${overload.value}</span>
+            <span class="sim-result-ideal">→ ≤ ${overload.limit}</span>
+            <span class="sim-result-delta"><span class="sim-arrow sim-arrow-up">!</span> КРИТИЧНО</span>
+        </div>
+    `;
+
+    const explainBlock = document.getElementById('sim-explain-block');
+    const explainList = document.getElementById('sim-explain-list');
+    explainList.innerHTML = `
+        <li class="is-danger"><b>${SIM_FIELD_LABELS[overload.field]} = ${overload.value}</b> превышает максимум ПЛК (<b>${overload.limit}</b>).</li>
+        <li class="is-danger">Контроллер откажется принять уставку или включит защиту по перегрузке — линия остановится.</li>
+        <li>Запомните ограничения: <b>насос 1 ≤ 80 · насос 2 ≤ 80 · насос 3 ≤ 45</b>.</li>
+    `;
+    explainBlock.classList.remove('hidden');
+}
+
+// ---------- Оверлей с очками ----------
+
+function simShowOverlay(win, points, results, quality) {
+    const overlay = document.getElementById('sim-overlay');
+    const badgeEl = document.getElementById('sim-overlay-badge');
+    const textEl = document.getElementById('sim-overlay-text');
+    const pointsEl = document.getElementById('sim-overlay-points');
+    const subEl = document.getElementById('sim-overlay-sub');
+    const particlesEl = document.getElementById('sim-particles');
+
+    overlay.classList.remove('win', 'lose', 'flash', 'accident', 'overload');
+    particlesEl.innerHTML = '';
+    badgeEl.textContent = '';
+    subEl.textContent = '';
+
+    void overlay.offsetWidth;
+    overlay.classList.add(win ? 'win' : 'lose', 'flash');
+
+    if (win) {
+        const qualityMap = {
+            perfect:   { badge: '💎', text: 'ИДЕАЛЬНО', sub: '★ АБСОЛЮТНАЯ ТОЧНОСТЬ ★' },
+            excellent: { badge: '🏅', text: 'ОТЛИЧНО',  sub: '★ МАСТЕРСКАЯ РАБОТА ★' },
+            good:      { badge: '⭐', text: 'ХОРОШО',   sub: '★ ГРАМОТНЫЙ ПОДХОД ★' },
+            ok:        { badge: '✅', text: 'ЗАЧЁТ',    sub: '★ НАЛАДКА ПРИНЯТА ★' },
+            'train-win':  { badge: '🎓', text: 'ОТРАБОТАНО', sub: '★ РЕЖИМ ТРЕНИРОВКИ ★' },
+            'train-lose': { badge: '🎓', text: 'РАЗБОР',    sub: '★ ПОСМОТРИ НИЖЕ ★' }
+        };
+        const q = qualityMap[quality] || qualityMap.ok;
+        badgeEl.textContent = q.badge;
+        textEl.textContent = q.text;
+        subEl.textContent = q.sub;
+
+        if (simTrainingMode || quality === 'train-win') {
+            pointsEl.textContent = 'БЕЗ ОЧКОВ (ТРЕНИРОВКА)';
+            simPlaySound('win');
+            simSpawnParticles(true, 40);
+        } else {
+            const streakMult = simGetStreakMultiplier();
+            pointsEl.textContent = `+${points} ОЧКОВ${simState.streak >= 3 ? `  (×${streakMult})` : ''}`;
+            simPlaySound(quality === 'perfect' ? 'perfect' : 'win');
+            if (navigator.vibrate) navigator.vibrate([40, 30, 40, 30, 80]);
+            simSpawnParticles(true, quality === 'perfect' ? 80 : 50);
+            if (quality === 'perfect') {
+                setTimeout(() => simSpawnParticles(true, 60), 300);
+            }
+        }
+    } else {
+        badgeEl.textContent = '💀';
+        textEl.textContent = 'ПРОВАЛ';
+        const okCount = results.filter(r => r.ok).length;
+        pointsEl.textContent = `${okCount} / ${results.length}`;
+        subEl.textContent = '★ ПОПРОБУЙ ЕЩЁ РАЗ ★';
+        simPlaySound('lose');
+        if (navigator.vibrate) navigator.vibrate([200, 80, 200, 80, 300]);
+        simSpawnParticles(false, 20);
+    }
+
+    overlay.classList.remove('hidden');
+
+    setTimeout(() => {
+        overlay.classList.add('hidden');
+        simRenderResult(win, points, results);
+    }, 2800);
+}
+
+function simSpawnParticles(win, count) {
+    const container = document.getElementById('sim-particles');
+    for (let i = 0; i < count; i++) {
+        const p = document.createElement('div');
+        p.className = 'sim-particle';
+        const angle = Math.random() * Math.PI * 2;
+        const distance = 120 + Math.random() * 320;
+        const tx = Math.cos(angle) * distance;
+        const ty = Math.sin(angle) * distance;
+        p.style.left = '50%';
+        p.style.top = '50%';
+        p.style.setProperty('--tx', tx + 'px');
+        p.style.setProperty('--ty', ty + 'px');
+        const colors = win ? ['#00ff44', '#00d4ff', '#ffb020', '#66e3ff'] : ['#ff3344', '#881122'];
+        p.style.background = colors[Math.floor(Math.random() * colors.length)];
+        p.style.boxShadow = `0 0 12px ${p.style.background}`;
+        p.style.animationDelay = (Math.random() * 0.4) + 's';
+        p.style.animationDuration = (1.4 + Math.random() * 0.8) + 's';
+        container.appendChild(p);
+    }
+}
+
+// ---------- Результат ----------
+
+function simRenderResult(win, points, results) {
+    document.getElementById('sim-task').classList.add('hidden');
+    document.getElementById('sim-result').classList.remove('hidden');
+
+    const titleEl = document.getElementById('sim-result-title');
+    const trainBadge = document.getElementById('sim-training-badge');
+
+    if (simTrainingMode) {
+        titleEl.textContent = win ? '🎓 Отработано без ошибок' : '🎓 Тренировка — разбор ошибок';
+        trainBadge.classList.remove('hidden');
+    } else {
+        titleEl.textContent = win ? '★ Задание выполнено' : '✖ Задание провалено';
+        trainBadge.classList.add('hidden');
+    }
+
+    const body = document.getElementById('sim-result-body');
+    body.innerHTML = '';
+
+    results.forEach(r => {
+        const row = document.createElement('div');
+        row.className = 'sim-result-row' + (r.ok ? '' : ' is-bad');
+
+        const userDisplay = isFinite(r.userValue) ? r.userValue : '—';
+        const deltaPercent = r.idealValue > 0
+            ? ((r.userValue - r.idealValue) / r.idealValue * 100).toFixed(1)
+            : '0';
+
+        let arrow;
+        if (!isFinite(r.userValue)) {
+            arrow = '<span class="sim-arrow sim-arrow-up">↑</span>';
+        } else if (r.ok) {
+            arrow = '<span class="sim-arrow sim-arrow-ok">✓</span>';
+        } else if (r.delta > 0) {
+            arrow = '<span class="sim-arrow sim-arrow-up">↑</span>';
+        } else {
+            arrow = '<span class="sim-arrow sim-arrow-down">↓</span>';
+        }
+        if (r.belowSafeDelay) {
+            arrow = '<span class="sim-arrow sim-arrow-up">!</span>';
+        }
+
+        const deltaText = r.ok ? '' : (r.delta > 0 ? '+' : '') + deltaPercent + '%';
+
+        row.innerHTML = `
+            <span class="sim-result-label">${SIM_FIELD_LABELS[r.field]}</span>
+            <span class="sim-result-user">${userDisplay}</span>
+            <span class="sim-result-ideal">→ ${r.idealValue}</span>
+            <span class="sim-result-delta">${arrow} ${deltaText}</span>
+        `;
+        body.appendChild(row);
+    });
+
+    const explainBlock = document.getElementById('sim-explain-block');
+    const explainList = document.getElementById('sim-explain-list');
+
+    const needExplain = simTrainingMode || !win;
+    if (needExplain) {
+        const explanations = simBuildExplanations(results, simCurrent);
+        if (explanations.length) {
+            explainList.innerHTML = explanations.map(e =>
+                `<li class="${e.cls || ''}">${e.text}</li>`
+            ).join('');
+            explainBlock.classList.remove('hidden');
+        } else {
+            explainBlock.classList.add('hidden');
+        }
+    } else {
+        explainBlock.classList.add('hidden');
+    }
+
+    if (win && !simTrainingMode && simCheckHighScore() && !simMP) {
+        setTimeout(() => simAskName(), 400);
+    }
+}
+
+function simBuildExplanations(results, ctx) {
+    const list = [];
+    if (!ctx) return list;
+
+    const task = ctx.task || {};
+    const params = task.params || {};
+    const visc = params.viscosity || 0;
+    const vol = params.volume || 0;
+    const line = params.line || '';
+    const isWide = (line === 'LINE_1_4' || line === 'LINE_1_6');
+
+    const bads = results.filter(r => !r.ok);
+
+    if (!bads.length) {
+        list.push({
+            cls: 'is-ok',
+            text: '<b>Все уставки в допуске.</b> Можно запускать тестовую партию 5–10 флаконов и проверять качество.'
+        });
+        return list;
+    }
+
+    bads.forEach(r => {
+        const field = r.field;
+        const userValue = r.userValue;
+        const idealValue = r.idealValue;
+        const isHigher = r.delta > 0;
+        const diffAbs = Math.abs(r.delta);
+
+        let reason = '';
+
+        if (field === 'pump_speed_1') {
+            if (isHigher) {
+                reason = `1-я скорость завышена. ${visc > 1000
+                    ? `При вязкости ${visc} ед. продукт пенится — первую ступень снижают на 20–30%.`
+                    : `Для маловязких продуктов первая ступень должна быть мягче, иначе пена.`} Снизьте на ≈${diffAbs.toFixed(2)}.`;
+            } else {
+                reason = `1-я скорость занижена. Слишком медленный старт — продукт не успевает войти в поток. Добавьте ≈${diffAbs.toFixed(2)}.`;
+            }
+        } else if (field === 'pump_speed_2') {
+            if (isHigher) {
+                reason = `2-я скорость завышена — основной поток. При переливе или расплёскивании снижают именно её. Уменьшите на ≈${diffAbs.toFixed(2)}.`;
+            } else {
+                reason = `2-я скорость занижена — продукт не успевает заполнить флакон. Добавьте ≈${diffAbs.toFixed(2)}.`;
+            }
+        } else if (field === 'pump_speed_3') {
+            if (isHigher) {
+                reason = `3-я скорость завышена. Верхний долив идёт слишком резко — будут брызги. Снизьте на ≈${diffAbs.toFixed(2)}.`;
+            } else {
+                reason = `3-я скорость занижена — недолив по верхней кромке. Добавьте ≈${diffAbs.toFixed(2)}.`;
+            }
+        } else if (field === 'lift_speed_1' || field === 'lift_speed_2' || field === 'lift_speed_3') {
+            if (isHigher) {
+                reason = `Скорость подъёма завышена. Сопло вылетает из продукта резко — брызги, капли на горлышке. Уменьшите на ≈${Math.round(diffAbs)}.`;
+            } else {
+                reason = `Скорость подъёма занижена. Сопло поднимается слишком медленно — теряется такт. Добавьте ≈${Math.round(diffAbs)}.`;
+            }
+        } else if (field === 'bottom_pos') {
+            reason = `Нижнее положение сопла задано неверно. Оно определяет глубину погружения. Отклонение ${isHigher ? '+' : '−'}${Math.round(diffAbs)} мм.`;
+        } else if (field === 'top_pour') {
+            reason = `Верхний налив задан неверно. Ориентир: высота флакона − 30 мм. Отклонение ${isHigher ? '+' : '−'}${Math.round(diffAbs)} мм.`;
+        } else if (field === 'delay') {
+            const taskVisc = ctx.task?.params?.viscosity ?? 0;
+            const delayMinSafe = simComputeDelayMin(taskVisc);
+
+            if (r.belowSafeDelay) {
+                list.push({
+                    cls: 'is-danger',
+                    text: `<b>Задержка подъёма ${userValue.toFixed(1)} с ниже безопасного минимума ${delayMinSafe.toFixed(1)} с</b> для вязкости ${taskVisc} ед. Чем жиже продукт, тем дольше сопло должно быть в нижней точке — иначе зеркало не стабилизируется.`
+                });
+                return;
+            }
+
+            if (isHigher) {
+                reason = `Задержка подъёма завышена. Сопло слишком долго в нижней точке — теряется такт. <b>Уменьшайте плавно по 0.2 с</b> — не сбрасывайте сразу.`;
+            } else {
+                reason = `Задержка подъёма занижена. Сопло не успевает стабилизировать зеркало. Минимум для вязкости ${taskVisc} ед. — ${delayMinSafe.toFixed(1)} с.`;
+            }
+        } else if (field === 'shiber_open_in') {
+            reason = `Открытие входного шибера настроено неверно. Норма ≥ 0.4 с. Типовое — 0.5 с. ${isHigher ? 'Слишком долгая задержка снижает такт.' : 'Слишком быстрая — риск замятия.'}`;
+        }
+
+        if (reason) list.push({ text: reason });
+    });
+
+    return list;
+}
+
+function simAskName() {
+    document.getElementById('sim-name-input').value = '';
+    document.getElementById('sim-name-overlay').classList.remove('hidden');
+    setTimeout(() => document.getElementById('sim-name-input').focus(), 200);
+}
+
+function simSubmitName() {
+    const name = document.getElementById('sim-name-input').value.trim() || 'Аноним';
+    simPushToLeaderboard(name);
+    document.getElementById('sim-name-overlay').classList.add('hidden');
+}
+
+function simSkipName() {
+    simPushToLeaderboard('Аноним');
+    document.getElementById('sim-name-overlay').classList.add('hidden');
+}
+
+function simNext() {
+    if (!simCurrent) { simBackToMenu(); return; }
+    if (simMP) { simMPNext(); return; }
+    const line = simCurrent.task.params.line;
+    const difficulty = simCurrent.difficulty;
+    simPendingDifficulty = difficulty;
+    simPickLine(line);
+}
+
+// ---------- Показать расчёт ----------
+
+function simShowCalc() {
+    if (!simCurrent) return;
+    const { task } = simCurrent;
+    const prm = task.params;
+
+    document.getElementById('lineSelect').value = prm.line;
+    document.getElementById('bottleHeightInput').value = prm.height;
+    document.getElementById('bottleVolumeInput').value = prm.volume;
+    document.getElementById('targetWeightInput').value = Math.round(prm.volume * prm.density);
+    document.getElementById('densityInput').value = prm.density;
+    document.getElementById('viscosityInput').value = prm.viscosity;
+
+    runUniversalCalculation();
+    switchTab('filling');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ---------- Мультиплеер ----------
+
+function simOpenMultiplayer() {
+    simHideAll();
+    document.getElementById('sim-mp-setup').classList.remove('hidden');
+}
+
+function simMPStart() {
+    const p1 = document.getElementById('sim-mp-p1').value.trim() || 'Игрок 1';
+    const p2 = document.getElementById('sim-mp-p2').value.trim() || 'Игрок 2';
+    const rounds = parseInt(document.getElementById('sim-mp-rounds').value) || 5;
+
+    simMP = {
+        players: [{ name: p1, score: 0 }, { name: p2, score: 0 }],
+        currentTurn: 0,
+        currentRound: 1,
+        totalRounds: rounds
+    };
+
+    simMode = 'classic';
+    simTrainingMode = false;
+
+    const lines = ['LINE_1_1', 'LINE_1_2', 'LINE_1_3', 'LINE_1_4', 'LINE_1_5', 'LINE_1_6'];
+    const line = lines[Math.floor(Math.random() * lines.length)];
+
+    simPendingDifficulty = 'medium';
+    simPickLine(line);
+    simMPRenderScoreboard();
+}
+
+function simMPRenderScoreboard() {
+    if (!simMP) return;
+    document.getElementById('sim-mp-score').classList.remove('hidden');
+    document.getElementById('sim-mp-p1-name').textContent  = simMP.players[0].name;
+    document.getElementById('sim-mp-p2-name').textContent  = simMP.players[1].name;
+    document.getElementById('sim-mp-p1-score').textContent = simMP.players[0].score;
+    document.getElementById('sim-mp-p2-score').textContent = simMP.players[1].score;
+    document.getElementById('sim-mp-round').textContent = `Раунд ${simMP.currentRound} / ${simMP.totalRounds}`;
+    document.getElementById('sim-mp-p1-card').classList.toggle('active', simMP.currentTurn === 0);
+    document.getElementById('sim-mp-p2-card').classList.toggle('active', simMP.currentTurn === 1);
+}
+
+function simMPNext() {
+    if (!simMP) return;
+
+    if (simMP.currentTurn === 0) simMP.currentTurn = 1;
+    else { simMP.currentTurn = 0; simMP.currentRound++; }
+
+    if (simMP.currentRound > simMP.totalRounds) {
+        simMPFinish();
+        return;
+    }
+
+    const lines = ['LINE_1_1', 'LINE_1_2', 'LINE_1_3', 'LINE_1_4', 'LINE_1_5', 'LINE_1_6'];
+    const line = lines[Math.floor(Math.random() * lines.length)];
+    simPendingDifficulty = 'medium';
+    simPickLine(line);
+    simMPRenderScoreboard();
+}
+
+function simMPFinish() {
+    if (!simMP) return;
+    const p1 = simMP.players[0];
+    const p2 = simMP.players[1];
+    const winner = p1.score > p2.score ? p1 : (p2.score > p1.score ? p2 : null);
+
+    simHideAll();
+    const overlay = document.getElementById('sim-overlay');
+    const badgeEl = document.getElementById('sim-overlay-badge');
+    const textEl = document.getElementById('sim-overlay-text');
+    const pointsEl = document.getElementById('sim-overlay-points');
+    const subEl = document.getElementById('sim-overlay-sub');
+
+    overlay.classList.remove('win', 'lose', 'accident', 'overload');
+    overlay.classList.add(winner ? 'win' : 'lose', 'flash');
+
+    if (winner) {
+        badgeEl.textContent = '🏆';
+        textEl.textContent = winner.name;
+        pointsEl.textContent = `${p1.name}: ${p1.score} · ${p2.name}: ${p2.score}`;
+        subEl.textContent = '★ ПОБЕДА ★';
+        simPlaySound('perfect');
+    } else {
+        badgeEl.textContent = '🤝';
+        textEl.textContent = 'НИЧЬЯ';
+        pointsEl.textContent = `${p1.score} : ${p2.score}`;
+        subEl.textContent = '★ РАВНЫЙ БОЙ ★';
+        simPlaySound('win');
+    }
+
+    simSpawnParticles(!!winner, 60);
+    overlay.classList.remove('hidden');
+    setTimeout(() => {
+        overlay.classList.add('hidden');
+        simMP = null;
+        simBackToMenu();
+    }, 4000);
+}
+
+// ---------- Звуки ----------
+
+let simAudioCtx = null;
+
+function simPlaySound(type) {
+    try {
+        if (!simAudioCtx) simAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const ctx = simAudioCtx;
+
+        const playBeep = (freq, startTime, duration, volume = 0.15, waveType = 'square') => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = waveType;
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0, ctx.currentTime + startTime);
+            gain.gain.linearRampToValueAtTime(volume, ctx.currentTime + startTime + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startTime + duration);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(ctx.currentTime + startTime);
+            osc.stop(ctx.currentTime + startTime + duration);
+        };
+
+        if (type === 'accident') {
+            playBeep(1046, 0.00, 0.08, 0.20, 'sawtooth');
+            playBeep(784,  0.08, 0.10, 0.20, 'sawtooth');
+            playBeep(523,  0.18, 0.12, 0.20, 'sawtooth');
+            playBeep(261,  0.30, 0.25, 0.20, 'sawtooth');
+            playBeep(130,  0.55, 0.50, 0.15, 'sawtooth');
+        } else if (type === 'overload') {
+            playBeep(180, 0.00, 0.10, 0.18, 'square');
+            playBeep(180, 0.12, 0.10, 0.18, 'square');
+            playBeep(220, 0.24, 0.10, 0.18, 'square');
+            playBeep(220, 0.36, 0.10, 0.18, 'square');
+            playBeep(140, 0.50, 0.40, 0.20, 'square');
+            playBeep(110, 0.90, 0.60, 0.18, 'square');
+        } else if (type === 'win') {
+            playBeep(523, 0.00, 0.12);
+            playBeep(659, 0.12, 0.12);
+            playBeep(784, 0.24, 0.12);
+            playBeep(1046, 0.36, 0.30);
+        } else if (type === 'perfect') {
+            playBeep(523, 0.00, 0.10);
+            playBeep(659, 0.10, 0.10);
+            playBeep(784, 0.20, 0.10);
+            playBeep(1046, 0.30, 0.15);
+            playBeep(1318, 0.45, 0.15);
+            playBeep(1568, 0.60, 0.40, 0.18, 'sawtooth');
+        } else if (type === 'lose') {
+            playBeep(392, 0.00, 0.15);
+            playBeep(311, 0.15, 0.15);
+            playBeep(261, 0.30, 0.20);
+            playBeep(196, 0.50, 0.35);
+        }
+    } catch {}
+}
+
+// ---------- Мои рецепты ----------
+
+function openUserRecipes() {
+    document.getElementById('user-recipes-overlay').classList.remove('hidden');
+    userRecipeRender();
+}
+
+function closeUserRecipes() {
+    document.getElementById('user-recipes-overlay').classList.add('hidden');
+}
+
+function userRecipeRender() {
+    const list = document.getElementById('user-recipe-list');
+    const empty = document.getElementById('user-recipe-empty');
+
+    if (!simUserRecipes.length) {
+        list.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+    }
+    empty.classList.add('hidden');
+    list.innerHTML = simUserRecipes.map((r, i) => `
+        <div class="sim-prod-item">
+            <b>${r.name}</b>
+            <span>${r.line.replace('LINE_', 'Л')}</span>
+            <span>${r.volume} мл</span>
+            <span>ρ=${r.density.toFixed(2)} η=${r.viscosity}</span>
+            <button class="sim-prod-del" onclick="userRecipeDel(${i})" title="Удалить">✕</button>
+        </div>
+    `).join('');
+}
+
+function userRecipeAdd() {
+    const name = document.getElementById('ur-name').value.trim();
+    const line = document.getElementById('ur-line').value;
+    const volume = parseFloat(document.getElementById('ur-volume').value) || 0;
+    const density = parseFloat(document.getElementById('ur-density').value) || 1.0;
+    const viscosity = parseFloat(document.getElementById('ur-visc').value) || 0;
+
+    if (!name) { alert('Введите название'); return; }
+    if (volume < 50 || volume > 6000) { alert('Объём 50–6000 мл'); return; }
+    if (density < 0.75 || density > 1.30) { alert('Плотность 0.75–1.30'); return; }
+
+    simUserRecipes.push({ name, line, volume, density, viscosity });
+    simSaveUserRecipes();
+    userRecipeRender();
+
+    document.getElementById('ur-name').value = '';
+    document.getElementById('ur-volume').value = '500';
+    document.getElementById('ur-density').value = '1.00';
+    document.getElementById('ur-visc').value = '0';
+    document.getElementById('ur-name').focus();
+}
+
+function userRecipeDel(idx) {
+    if (!confirm('Удалить этот рецепт?')) return;
+    simUserRecipes.splice(idx, 1);
+    simSaveUserRecipes();
+    userRecipeRender();
+}
+
+function userRecipeClear() {
+    if (!simUserRecipes.length) return;
+    if (!confirm('Удалить все мои рецепты?')) return;
+    simUserRecipes = [];
+    simSaveUserRecipes();
+    userRecipeRender();
+}
+
+// ---------- Инициализация тренажёра ----------
+
+function simInit() {
+    simLoadStats();
+    simUpdateStatsUI();
+}
+
+// ============================================================
+// 14. ИНИЦИАЛИЗАЦИЯ
 // ============================================================
 
 window.addEventListener('DOMContentLoaded', () => {
     initEngStorage();
     loadJournal();
+    simInit();
     runUniversalCalculation();
     switchTab('filling');
     calculateLabelerFrequencies();
@@ -1499,7 +2803,6 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('eng-confirm-discard')?.addEventListener('click', engConfirmDiscard);
     document.getElementById('eng-confirm-cancel')?.addEventListener('click', engConfirmCancel);
 
-    // PWA
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('./service-worker.js').catch((e) => {
             console.log('SW не зарегистрирован:', e);
