@@ -25,6 +25,9 @@
     <button id="btn-tab-capping" class="tab" onclick="switchTab('capping')" role="tab">
         <span class="tab-icon">🏺</span><span class="tab-label">Укупор</span>
     </button>
+    <button id="btn-tab-simulator" class="tab" onclick="switchTab('simulator')" role="tab">
+        <span class="tab-icon">🎮</span><span class="tab-label">Тренажёр</span>
+    </button>
     <button id="btn-tab-help" class="tab" onclick="switchTab('help')" role="tab">
         <span class="tab-icon">❓</span><span class="tab-label">Справка</span>
     </button>
@@ -176,9 +179,12 @@
                         <span>Блокировка конвейера</span>
                         <span class="badge" id="sub_conveyor_stop_badge">ЗАПУСТИТЬ</span>
                     </div>
-                    <div class="plc-sub-row is-hl">
+                    <div class="plc-sub-row is-hl plc-delay-row">
                         <span>Задержка подъёма (погружение)</span>
-                        <span class="plc-val" id="sub_nozzle_lift_delay">0.0 с</span>
+                        <div class="plc-delay-cell">
+                            <span class="plc-val" id="sub_nozzle_lift_delay">0.0 с</span>
+                            <span class="plc-delay-tip" title="Если сопла слишком глубоко погружаются в продукт — уменьшайте задержку плавно по 0.2 с">💡 уменьшать по 0.2 с при глубоком погружении</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -400,6 +406,218 @@
 </section>
 
 <!-- ============================================================
+     ВКЛАДКА: ТРЕНАЖЁР
+     ============================================================ -->
+<section id="content-simulator" class="tab-content">
+
+    <div class="page-head">
+        <h1>🎮 Тренажёр налива</h1>
+        <p>Играй, тренируйся, бей рекорды</p>
+    </div>
+
+    <!-- ГЛАВНОЕ МЕНЮ -->
+    <div id="sim-menu">
+        <div class="sim-hero">
+            <div class="sim-hero-title">MOBILE ASSISTANT</div>
+            <div class="sim-hero-sub">LINE SIMULATOR 2.0</div>
+            <div class="sim-hero-crt"></div>
+        </div>
+
+        <div class="sim-stats">
+            <div class="sim-stat"><span>Очки</span><b id="sim-stat-score">0</b></div>
+            <div class="sim-stat"><span>Серия</span><b id="sim-stat-streak">0</b></div>
+            <div class="sim-stat"><span>Побед</span><b id="sim-stat-wins">0</b></div>
+            <div class="sim-stat"><span>Попыток</span><b id="sim-stat-attempts">0</b></div>
+        </div>
+
+        <div class="card">
+            <h2 class="card-title">Режим игры</h2>
+            <div class="sim-mode-grid">
+                <button class="sim-mode-btn" onclick="simOpenDifficulty('classic')">
+                    <span class="sim-mode-icon">🎯</span>
+                    <span class="sim-mode-name">КЛАССИКА</span>
+                    <span class="sim-mode-desc">Настрой линию по исходным данным</span>
+                </button>
+                <button class="sim-mode-btn" onclick="simOpenDifficulty('accident')">
+                    <span class="sim-mode-icon">⚠️</span>
+                    <span class="sim-mode-name">АВАРИЯ</span>
+                    <span class="sim-mode-desc">Исправь ошибку на линии</span>
+                </button>
+                <button class="sim-mode-btn" onclick="simOpenMultiplayer()">
+                    <span class="sim-mode-icon">⚔</span>
+                    <span class="sim-mode-name">МУЛЬТИПЛЕЕР</span>
+                    <span class="sim-mode-desc">2 игрока на одном устройстве</span>
+                </button>
+                <button class="sim-mode-btn" onclick="simOpenLeaderboard()">
+                    <span class="sim-mode-icon">🏆</span>
+                    <span class="sim-mode-name">ЛИДЕРБОРД</span>
+                    <span class="sim-mode-desc">Топ-10 лучших результатов</span>
+                </button>
+                <button class="sim-mode-btn sim-mode-btn-wide sim-training-btn" onclick="simOpenDifficulty('classic')" data-training="1">
+                    <span class="sim-mode-icon">🎓</span>
+                    <span class="sim-mode-name">ТРЕНИРОВКА</span>
+                    <span class="sim-mode-desc">Без очков, с полным разбором каждой ошибки</span>
+                </button>
+                <button class="sim-mode-btn sim-mode-btn-wide" onclick="openUserRecipes()">
+                    <span class="sim-mode-icon">📝</span>
+                    <span class="sim-mode-name">МОИ РЕЦЕПТЫ</span>
+                    <span class="sim-mode-desc">Добавляй свои продукты без пароля — они появятся в заданиях</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ВЫБОР СЛОЖНОСТИ -->
+    <div id="sim-difficulty" class="hidden">
+        <button class="btn btn-ghost" onclick="simBackToMenu()">← В главное меню</button>
+        <div class="card" style="margin-top:12px;">
+            <h2 class="card-title" id="sim-diff-title">Выбор сложности</h2>
+            <div class="sim-diff-grid">
+                <button class="sim-diff-btn" onclick="simStart('easy')">
+                    <span class="sim-diff-icon">🌱</span>
+                    <span class="sim-diff-name">НОВИЧОК</span>
+                    <span class="sim-diff-desc">±20% · 3 поля</span>
+                    <span class="sim-diff-xp">×1 очки</span>
+                </button>
+                <button class="sim-diff-btn" onclick="simStart('medium')">
+                    <span class="sim-diff-icon">⚙</span>
+                    <span class="sim-diff-name">ОПЕРАТОР</span>
+                    <span class="sim-diff-desc">±15% · 6 полей</span>
+                    <span class="sim-diff-xp">×1.5 очки</span>
+                </button>
+                <button class="sim-diff-btn" onclick="simStart('hard')">
+                    <span class="sim-diff-icon">🔥</span>
+                    <span class="sim-diff-name">МАСТЕР</span>
+                    <span class="sim-diff-desc">±10% · 10 полей</span>
+                    <span class="sim-diff-xp">×2 очки</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ВЫБОР ЛИНИИ -->
+    <div id="sim-line-select" class="hidden">
+        <button class="btn btn-ghost" onclick="simBackToMenu()">← В главное меню</button>
+        <div class="card" style="margin-top:12px;">
+            <h2 class="card-title">🎯 Выберите линию</h2>
+            <p class="modal-text">Симулятор сгенерирует исходные данные для этой линии. Составьте рецепт — введите уставки.</p>
+            <div class="sim-line-grid">
+                <button class="sim-line-btn" onclick="simPickLine('LINE_1_1')"><span class="sim-line-num">1.1</span><span class="sim-line-desc">Узкие сопла</span></button>
+                <button class="sim-line-btn" onclick="simPickLine('LINE_1_2')"><span class="sim-line-num">1.2</span><span class="sim-line-desc">Узкие сопла</span></button>
+                <button class="sim-line-btn" onclick="simPickLine('LINE_1_3')"><span class="sim-line-num">1.3</span><span class="sim-line-desc">Узкие сопла</span></button>
+                <button class="sim-line-btn" onclick="simPickLine('LINE_1_4')"><span class="sim-line-num">1.4</span><span class="sim-line-desc">Широкие сопла</span></button>
+                <button class="sim-line-btn" onclick="simPickLine('LINE_1_5')"><span class="sim-line-num">1.5</span><span class="sim-line-desc">Узкие сопла</span></button>
+                <button class="sim-line-btn" onclick="simPickLine('LINE_1_6')"><span class="sim-line-num">1.6</span><span class="sim-line-desc">Широкие сопла</span></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ЗАДАНИЕ -->
+    <div id="sim-limits-info" class="sim-limits-info">
+        ⚠️ <b>Ограничения ПЛК:</b> насос 1 ≤ <b>80</b> · насос 2 ≤ <b>80</b> · насос 3 ≤ <b>45</b> · откр. шибера вход ≥ <b>0.4 с</b><br>
+        <b>Задержка подъёма:</b> вода → <b>3.0 с</b>, вязкость 800+ → <b>1.5 с</b> · если сопла глубоко погружаются — уменьшать по <b>0.2 с</b>
+    </div>
+
+    <div id="sim-training-info" class="sim-training-info hidden">
+        🎓 <b>Тренировка:</b> очки не начисляются, но после каждой попытки вы увидите подробный разбор.
+    </div>
+
+    <div id="sim-task" class="hidden">
+        <div class="sim-task-head">
+            <div>
+                <span class="sim-task-diff" id="sim-task-diff">НОВИЧОК</span>
+                <span class="sim-task-progress" id="sim-task-progress">Задание 1</span>
+                <span class="sim-task-streak hidden" id="sim-task-streak">🔥 x3</span>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="simCancel()">✕ Выйти</button>
+        </div>
+
+        <div class="sim-screen">
+            <div class="sim-product-card">
+                <div class="sim-screen-title" id="sim-screen-title">📋 ИСХОДНЫЕ ДАННЫЕ</div>
+                <ul class="sim-product-list" id="sim-product-list"></ul>
+            </div>
+            <div class="sim-inputs-block">
+                <div class="sim-screen-title">⚙ ВВЕДИ УСТАВКИ</div>
+                <div id="sim-inputs" class="sim-inputs"></div>
+            </div>
+        </div>
+
+        <div id="sim-hint" class="sim-hint hidden"></div>
+
+        <div class="btn-row">
+            <button class="btn btn-primary" onclick="simCheck()">✅ Проверить</button>
+            <button class="btn btn-secondary" onclick="simShowHint()">💡 Подсказка</button>
+        </div>
+    </div>
+
+    <!-- РЕЗУЛЬТАТ -->
+    <div id="sim-result" class="hidden">
+        <h2 class="card-title" id="sim-result-title">Результат</h2>
+        <div id="sim-training-badge" class="sim-training-badge hidden">🎓 РЕЖИМ ТРЕНИРОВКИ · очки не начисляются</div>
+        <div id="sim-result-body" class="sim-result-body"></div>
+        <div id="sim-explain-block" class="sim-explain-block hidden">
+            <h3 class="sim-explain-title">🔍 Разбор</h3>
+            <ul id="sim-explain-list" class="sim-explain-list"></ul>
+        </div>
+        <div class="btn-row">
+            <button class="btn btn-primary" onclick="simNext()">▶ Следующее</button>
+            <button class="btn btn-secondary" onclick="simShowCalc()">📊 Показать расчёт</button>
+        </div>
+        <div class="btn-row">
+            <button class="btn btn-ghost btn-block" onclick="simCancel()">✕ В меню</button>
+        </div>
+    </div>
+
+    <!-- ЛИДЕРБОРД -->
+    <div id="sim-leaderboard" class="hidden">
+        <button class="btn btn-ghost" onclick="simBackToMenu()">← В главное меню</button>
+        <div class="sim-leaderboard-box" style="margin-top:12px;">
+            <div class="sim-lb-title">🏆 ЛУЧШИЕ НАЛАДЧИКИ 🏆</div>
+            <ol id="sim-lb-list" class="sim-lb-list"></ol>
+            <div id="sim-lb-empty" class="sim-lb-empty">Пока никто не играл. Будь первым!</div>
+            <button class="btn btn-ghost btn-block" style="margin-top:12px;" onclick="simClearLeaderboard()">🗑 Очистить таблицу</button>
+        </div>
+    </div>
+
+    <!-- МУЛЬТИПЛЕЕР -->
+    <div id="sim-mp-setup" class="hidden">
+        <button class="btn btn-ghost" onclick="simBackToMenu()">← В главное меню</button>
+        <div class="card" style="margin-top:12px;">
+            <h2 class="card-title">⚔ Мультиплеер · 2 игрока</h2>
+            <p class="modal-text">По очереди выполняете задания. Побеждает тот, у кого больше очков.</p>
+            <div class="field"><label for="sim-mp-p1">Игрок 1</label><input id="sim-mp-p1" type="text" maxlength="12" value="Игрок 1"></div>
+            <div class="field"><label for="sim-mp-p2">Игрок 2</label><input id="sim-mp-p2" type="text" maxlength="12" value="Игрок 2"></div>
+            <div class="field">
+                <label for="sim-mp-rounds">Раундов</label>
+                <select id="sim-mp-rounds">
+                    <option value="3">3 раунда</option>
+                    <option value="5" selected>5 раундов</option>
+                    <option value="7">7 раундов</option>
+                </select>
+            </div>
+            <button class="btn btn-primary btn-block" onclick="simMPStart()">▶ Начать дуэль</button>
+        </div>
+    </div>
+
+    <div id="sim-mp-score" class="hidden">
+        <div class="sim-mp-scoreboard">
+            <div class="sim-mp-player" id="sim-mp-p1-card">
+                <div class="sim-mp-name" id="sim-mp-p1-name">Игрок 1</div>
+                <div class="sim-mp-pts" id="sim-mp-p1-score">0</div>
+            </div>
+            <div class="sim-mp-vs">VS</div>
+            <div class="sim-mp-player" id="sim-mp-p2-card">
+                <div class="sim-mp-name" id="sim-mp-p2-name">Игрок 2</div>
+                <div class="sim-mp-pts" id="sim-mp-p2-score">0</div>
+            </div>
+        </div>
+        <div class="sim-mp-round" id="sim-mp-round">Раунд 1</div>
+    </div>
+
+</section>
+
+<!-- ============================================================
      ВКЛАДКА: СПРАВКА
      ============================================================ -->
 <section id="content-help" class="tab-content">
@@ -414,6 +632,7 @@
         <a href="#help-filling">Налив</a>
         <a href="#help-labeler">Этикетовщик</a>
         <a href="#help-capping">Укупор</a>
+        <a href="#help-sim">Тренажёр</a>
         <a href="#help-eng">Инженерное меню</a>
         <a href="#help-journal">Журнал</a>
         <a href="#help-faq">Частые вопросы</a>
@@ -421,19 +640,9 @@
 
     <div class="card" id="help-about">
         <h2 class="card-title">О приложении</h2>
-        <p class="help-p">
-            <b>Mobile Assistant 2.0</b> — калькулятор и справочник для наладки линии розлива.
-            Приложение выдаёт <em>рекомендации</em>, а не принудительные уставки: финальную
-            корректировку всегда делает наладчик.
-        </p>
-        <p class="help-p">
-            Все расчёты выполняются на устройстве. Никаких данных в интернет не уходит.
-            Калибровки и журнал хранятся в памяти браузера.
-        </p>
-        <p class="help-p">
-            Приложение можно <b>установить на домашний экран</b> телефона или планшета —
-            тогда оно работает офлайн, как обычное приложение.
-        </p>
+        <p class="help-p"><b>Mobile Assistant 2.0</b> — калькулятор и справочник для наладки линии розлива. Приложение выдаёт <em>рекомендации</em>, а не принудительные уставки: финальную корректировку всегда делает наладчик.</p>
+        <p class="help-p">Все расчёты выполняются на устройстве. Никаких данных в интернет не уходит. Калибровки и журнал хранятся в памяти браузера.</p>
+        <p class="help-p">Приложение можно <b>установить на домашний экран</b> — тогда оно работает офлайн.</p>
     </div>
 
     <div class="card" id="help-filling">
@@ -441,27 +650,32 @@
         <h3 class="subsection-title">Ввод</h3>
         <ul class="help-list">
             <li><b>Технологическая линия</b> — 1.1 … 1.6. От неё зависят диапазоны скоростей и логика расчёта.</li>
-            <li><b>Высота флакона</b> — по рулетке, в миллиметрах.</li>
+            <li><b>Высота флакона</b> — по рулетке, в мм.</li>
             <li><b>Объём флакона</b> — справочная величина (сколько лезет в бутылку).</li>
-            <li><b>Целевой вес</b> — масса, указанная в карте розлива.</li>
-            <li><b>Плотность</b> — связывает массу и объём. Линия флоуметрическая и считает объём, поэтому <b>V = m / ρ</b>. Результат показывается в панели ввода и на экране ПЛК в строке «Общий объём заполнения».</li>
-            <li><b>Вязкость</b> — условные единицы. 0 — вода, 1450–1850 — мыло.</li>
+            <li><b>Целевой вес</b> — масса из карты розлива.</li>
+            <li><b>Плотность</b> — связывает массу и объём. V = m / ρ. Результат — на экране ПЛК в строке «Общий объём заполнения».</li>
+            <li><b>Вязкость</b> — 0 — вода, 1450–1850 — мыло.</li>
         </ul>
         <h3 class="subsection-title">Как читать экран ПЛК</h3>
         <ul class="help-list">
-            <li>Левая колонка — скорости подъёма сопел и их положения (1/2/3 — три ступени).</li>
+            <li>Левая колонка — скорости подъёма сопел и их положения (1/2/3).</li>
             <li>Правая колонка — скорости насоса, объёмы перехода, тайминги шиберов, скорости конвейера.</li>
-            <li><b>Общий объём заполнения</b> — расчётный объём в мл, который нужно налить в каждый флакон.</li>
-            <li><b>Задержка подъёма</b> — время погружения сопла. Ниже 0.4 с — критический режим.</li>
+            <li><b>Общий объём заполнения</b> — расчётный объём в мл.</li>
         </ul>
-        <div class="callout callout-warning">
-            <b>Важно:</b> если рекомендуемая задержка меньше 0.4 с — не запускайте линию.
-            Это ведёт к износу привода траверсы.
-        </div>
+        <div class="callout callout-warning"><b>Важно:</b> если рекомендуемая задержка меньше 0.4 с — не запускайте линию. Это ведёт к износу привода траверсы.</div>
+
+        <h3 class="subsection-title">Рекомендация по задержке подъёма</h3>
+        <ul class="help-list">
+            <li><b>Минимум по вязкости</b> — модель подставляет автоматически: вода → 3.0 с, вязкость 800+ → 1.5 с.</li>
+            <li>Если сопла <b>слишком глубоко погружаются</b> — уменьшайте задержку <b>плавно по 0.2 с</b>, пока не найдёте оптимум.</li>
+            <li>Слишком большая задержка = потеря такта, продукт выплёскивает при подъёме.</li>
+            <li>Слишком маленькая = зеркало не стабилизируется, брызги, недолив.</li>
+        </ul>
+
         <h3 class="subsection-title">Отправка в ПЛК</h3>
         <ul class="help-list">
             <li>Кнопка <b>«📤 Отправить»</b> в шапке экрана ПЛК — открывает список уставок.</li>
-            <li>Сейчас уставки можно скопировать и передать вручную. Реальная отправка — после интеграции с контроллером.</li>
+            <li>Сейчас уставки копируются вручную. Реальная отправка — после интеграции с контроллером.</li>
         </ul>
     </div>
 
@@ -470,100 +684,98 @@
         <h3 class="subsection-title">Калькулятор частот</h3>
         <ul class="help-list">
             <li>Введите <b>целевую скорость конвейера</b> (м/мин) — приложение покажет нужные Гц на трёх приводах.</li>
-            <li>Либо переключитесь на <b>Hz конвейера</b> и введите частоту — покажет эквивалентную скорость и Гц остальных приводов.</li>
-            <li>Если линия не откалибрована — появится предупреждение, расчёт пойдёт по значениям линии 1.1.</li>
+            <li>Либо переключитесь на <b>Hz конвейера</b> — покажет эквивалентную скорость.</li>
+            <li>Если линия не откалибрована — расчёт пойдёт по значениям линии 1.1.</li>
         </ul>
         <h3 class="subsection-title">Настройка угла ножа</h3>
         <ul class="help-list">
             <li>Выберите тип флакона. Для пузатых и круглых появится поле угла скругления.</li>
             <li>Занесите замеры углов с инклинометра — приложение сгенерирует пошаговую инструкцию.</li>
-            <li>Порядок калибровки: сначала <b>поперечная</b>, потом <b>продольная</b>.</li>
+            <li>Порядок: сначала <b>поперечная</b>, потом <b>продольная</b>.</li>
         </ul>
     </div>
 
     <div class="card" id="help-capping">
         <h2 class="card-title">🏺 Вкладка «Укупор»</h2>
         <ul class="help-list">
-            <li>Тип укупорки: крышка или триггер. Для триггера добивалка не используется.</li>
-            <li>Укажите диаметр и высоту укупорки, высоту флакона, скорость конвейера.</li>
+            <li>Тип укупорки: крышка или триггер.</li>
+            <li>Укажите диаметр, высоту укупорки, высоту флакона, скорость конвейера.</li>
             <li>Нажмите «Рассчитать» — получите параметры для панели, пневматики, механики и производительность.</li>
-            <li>Кнопка «Копировать» отправляет параметры в буфер — можно вставить в журнал или мессенджер.</li>
+        </ul>
+    </div>
+
+    <div class="card" id="help-sim">
+        <h2 class="card-title">🎮 Вкладка «Тренажёр»</h2>
+        <h3 class="subsection-title">Режимы</h3>
+        <ul class="help-list">
+            <li><b>Классика</b> — настрой линию по исходным данным.</li>
+            <li><b>Авария</b> — исправь ошибку на линии.</li>
+            <li><b>Мультиплеер</b> — 2 игрока по очереди.</li>
+            <li><b>Тренировка</b> — без очков, с полным разбором каждой ошибки.</li>
+            <li><b>Мои рецепты</b> — добавляй свои продукты без пароля, они появятся в заданиях.</li>
+        </ul>
+        <h3 class="subsection-title">Уровни сложности</h3>
+        <ul class="help-list">
+            <li><b>🌱 Новичок</b> — ±20%, 3 поля.</li>
+            <li><b>⚙ Оператор</b> — ±15%, 6 полей.</li>
+            <li><b>🔥 Мастер</b> — ±10%, 10 полей.</li>
+        </ul>
+        <h3 class="subsection-title">Критические ограничения ПЛК</h3>
+        <ul class="help-list">
+            <li>Насос 1 ≤ 80, насос 2 ≤ 80, насос 3 ≤ 45. Превышение — авария «Перегруз насоса».</li>
+            <li>Откр. шибера вход ≥ 0.4 с. Ниже — авария «Замятие флакона».</li>
+            <li>Задержка подъёма ≥ 3.0 − (вязкость/800)×1.5 с, но не меньше 1.5 с.</li>
+        </ul>
+        <h3 class="subsection-title">Очки и серии</h3>
+        <ul class="help-list">
+            <li>Базовые 100 за поле, +100 если в половине допуска, +200 если в 5%.</li>
+            <li>Серия: 3 победы → ×1.5, 5 → ×2, 10 → ×3.</li>
+            <li>Провал обнуляет серию.</li>
         </ul>
     </div>
 
     <div class="card" id="help-eng">
         <h2 class="card-title">🔧 Инженерное меню</h2>
-        <p class="help-p">
-            Вход — кнопка <b>⚙</b> в правом нижнем углу. Доступ защищён PIN-кодом.
-            PIN спрашивается один раз за сессию браузера; после перезагрузки страницы — снова.
-        </p>
+        <p class="help-p">Вход — кнопка <b>⚙</b> в правом нижнем углу. Доступ защищён PIN-кодом. PIN спрашивается один раз за сессию браузера.</p>
         <h3 class="subsection-title">Калибровка этикетовщика</h3>
         <ul class="help-list">
-            <li>Для каждой линии задайте <b>3–5 точек</b>: частота на панели (Гц) → измеренная скорость (м/мин).</li>
-            <li>Приложение строит линейную регрессию и показывает <b>R²</b>. Если R² &lt; 0.98 — перепроверьте замеры.</li>
-            <li><b>Максимум Гц</b> для каждого привода задаётся вручную — у разных линий он разный.</li>
-            <li>После заполнения — «Сохранить». Коэффициенты работают только на этом устройстве.</li>
+            <li>Для каждой линии задайте <b>3–5 точек</b>: частота (Гц) → скорость (м/мин).</li>
+            <li>Приложение строит линейную регрессию, показывает <b>R²</b>. Если R² < 0.98 — перепроверьте замеры.</li>
+            <li><b>Максимум Гц</b> задаётся вручную — у разных линий разный.</li>
         </ul>
         <h3 class="subsection-title">Экспорт и импорт</h3>
         <ul class="help-list">
             <li><b>Экспорт ▾</b> → «все линии» или «текущая линия» — выгружает JSON.</li>
-            <li><b>Импорт</b> — принимает только линии 1.1 … 1.6. Неизвестные ключи игнорируются с уведомлением.</li>
+            <li><b>Импорт</b> — принимает только линии 1.1 … 1.6.</li>
         </ul>
         <h3 class="subsection-title">PIN-код</h3>
         <ul class="help-list">
             <li>PIN задаёт инженер при первом запуске приложения.</li>
-            <li>Сменить PIN можно внизу инженерного меню — «Сменить PIN».</li>
-            <li>PIN хранится в памяти браузера. Если забыли — обратитесь к инженеру, который настраивал приложение.</li>
+            <li>Сменить можно внизу инженерного меню.</li>
+            <li>Если забыли — обратитесь к инженеру.</li>
         </ul>
     </div>
 
     <div class="card" id="help-journal">
         <h2 class="card-title">🗒 Журнал наладок</h2>
-        <p class="help-p">
-            Вход — кнопка <b>🗒</b> слева от шестерёнки в правом нижнем углу.
-            Журнал сохраняет историю наладок: параметры и расчётные значения.
-        </p>
+        <p class="help-p">Вход — кнопка <b>🗒</b> слева от шестерёнки. Журнал сохраняет историю наладок.</p>
         <ul class="help-list">
-            <li><b>Сохранить текущий расчёт</b> — добавить запись по параметрам с вкладки «Налив».</li>
-            <li>Также сохранить можно кнопкой «📌 Сохранить в журнал» прямо на вкладке «Налив».</li>
-            <li><b>Загрузить в форму</b> — вернуть параметры записи на вкладку «Налив».</li>
+            <li><b>Сохранить текущий расчёт</b> — добавить запись.</li>
+            <li><b>Загрузить в форму</b> — вернуть параметры записи.</li>
             <li><b>Экспорт</b> — выгрузить журнал в JSON.</li>
-            <li><b>Очистить</b> — удалить все записи (с подтверждением).</li>
+            <li><b>Очистить</b> — удалить все записи.</li>
         </ul>
     </div>
 
     <div class="card" id="help-faq">
         <h2 class="card-title">❓ Частые вопросы</h2>
-
-        <details class="faq-item">
-            <summary>Почему рекомендуемые значения не совпадают с реальными?</summary>
-            <p>Приложение даёт <b>рекомендацию</b> по математической модели. Реальное поведение зависит от состояния механики, износа насоса, температуры продукта. Если ваше значение устойчиво отличается — используйте его и сообщите инженеру для калибровки.</p>
-        </details>
-
-        <details class="faq-item">
-            <summary>Что делать, если приложение показывает «линия не откалибрована»?</summary>
-            <p>Обратиться к инженеру. Пока линия не откалибрована, расчёт идёт по коэффициентам линии 1.1, что может дать погрешность.</p>
-        </details>
-
-        <details class="faq-item">
-            <summary>Работает ли приложение без интернета?</summary>
-            <p>Да, если вы установили его на домашний экран (через меню браузера «Добавить на главный экран»). После установки приложение работает офлайн.</p>
-        </details>
-
-        <details class="faq-item">
-            <summary>Можно ли использовать на нескольких устройствах?</summary>
-            <p>Да, но калибровка и журнал хранятся локально. Чтобы перенести — экспортируйте JSON на одном устройстве и импортируйте на другом.</p>
-        </details>
-
-        <details class="faq-item">
-            <summary>Как считается вес и объём заполнения?</summary>
-            <p>Карта розлива задаёт массу (г). Линия флоуметрическая, считает объём (мл). Связь: <b>V = m / ρ</b>, где ρ — плотность продукта.</p>
-        </details>
-
-        <details class="faq-item">
-            <summary>Что значит «режим верхнего налива»?</summary>
-            <p>При вязкости выше 1000 ед. приложение может рекомендовать верхний налив — это снижает износ привода траверсы.</p>
-        </details>
+        <details class="faq-item"><summary>Почему рекомендуемые значения не совпадают с реальными?</summary><p>Приложение даёт <b>рекомендацию</b> по математической модели. Реальное поведение зависит от состояния механики, износа насоса, температуры. Если ваше значение устойчиво отличается — используйте его и сообщите инженеру.</p></details>
+        <details class="faq-item"><summary>Что делать, если приложение показывает «линия не откалибрована»?</summary><p>Обратиться к инженеру. Пока линия не откалибрована, расчёт идёт по коэффициентам линии 1.1.</p></details>
+        <details class="faq-item"><summary>Работает ли приложение без интернета?</summary><p>Да, если установили на домашний экран (меню браузера → «Добавить на главный экран»).</p></details>
+        <details class="faq-item"><summary>Можно ли использовать на нескольких устройствах?</summary><p>Да, но калибровка и журнал хранятся локально. Экспортируйте JSON на одном, импортируйте на другом.</p></details>
+        <details class="faq-item"><summary>Как считается вес и объём заполнения?</summary><p>Карта розлива задаёт массу (г). Линия флоуметрическая, считает объём (мл). Связь: <b>V = m / ρ</b>.</p></details>
+        <details class="faq-item"><summary>Что значит «режим верхнего налива»?</summary><p>При вязкости выше 1000 ед. приложение рекомендует верхний налив — это снижает износ привода траверсы.</p></details>
+        <details class="faq-item"><summary>Зачем нужен тренажёр?</summary><p>Обучение новых операторов. Они тренируются на реальных сценариях, не портя продукцию на линии.</p></details>
     </div>
 
 </section>
@@ -588,27 +800,12 @@
             <button class="modal-close" onclick="closeSendModal()">✕</button>
         </header>
         <div class="modal-body">
-            <p class="modal-text">
-                Ниже — уставки, которые будут переданы в контроллер линии.
-                <b>Рекомендуется проверить перед отправкой.</b>
-            </p>
-
+            <p class="modal-text">Ниже — уставки для контроллера линии. <b>Проверьте перед отправкой.</b></p>
             <div id="send-params-block" class="send-block">
-                <div class="send-section">
-                    <h4>Налив · скорости и позиции</h4>
-                    <ul id="send-list-main" class="send-list"></ul>
-                </div>
-                <div class="send-section">
-                    <h4>Налив · тайминги</h4>
-                    <ul id="send-list-timing" class="send-list"></ul>
-                </div>
+                <div class="send-section"><h4>Налив · скорости и позиции</h4><ul id="send-list-main" class="send-list"></ul></div>
+                <div class="send-section"><h4>Налив · тайминги</h4><ul id="send-list-timing" class="send-list"></ul></div>
             </div>
-
-            <div class="alert alert-warning">
-                <strong>Внимание:</strong> реальная отправка в ПЛК будет доступна после интеграции с контроллером линии.
-                Сейчас уставки можно скопировать и передать вручную.
-            </div>
-
+            <div class="alert alert-warning"><strong>Внимание:</strong> реальная отправка в ПЛК будет доступна после интеграции с контроллером. Сейчас уставки можно скопировать и передать вручную.</div>
             <div class="modal-actions">
                 <button onclick="copySendParams()" class="btn btn-primary btn-block">📋 Копировать всё</button>
                 <button onclick="closeSendModal()" class="btn btn-ghost btn-block">Закрыть</button>
@@ -618,7 +815,7 @@
 </div>
 
 <!-- ============================================================
-     МОДАЛКА: ЖУРНАЛ НАЛАДОК
+     МОДАЛКА: ЖУРНАЛ
      ============================================================ -->
 <div id="journal-overlay" class="modal-overlay hidden">
     <div class="modal">
@@ -628,16 +825,48 @@
         </header>
         <div class="modal-body">
             <button onclick="saveCurrentToJournal()" class="btn btn-primary btn-block">📌 Сохранить текущий расчёт</button>
-
-            <div id="journal-empty" class="journal-empty hidden">
-                Журнал пуст. Заполните параметры на вкладке «Налив» и нажмите «Сохранить».
-            </div>
-
+            <div id="journal-empty" class="journal-empty hidden">Журнал пуст.</div>
             <div id="journal-list" class="journal-list"></div>
-
             <div class="modal-actions-grid">
                 <button onclick="exportJournal()" class="btn btn-ghost">📤 Экспорт</button>
                 <button onclick="clearJournal()" class="btn btn-ghost">🗑 Очистить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================
+     МОДАЛКА: МОИ РЕЦЕПТЫ
+     ============================================================ -->
+<div id="user-recipes-overlay" class="modal-overlay hidden">
+    <div class="modal">
+        <header class="modal-head">
+            <h2>📝 Мои рецепты</h2>
+            <button class="modal-close" onclick="closeUserRecipes()">✕</button>
+        </header>
+        <div class="modal-body">
+            <p class="modal-text">Здесь можно сохранить свои продукты. Они появятся в заданиях тренажёра как исходные данные. <b>Пароль не требуется</b>.</p>
+            <h3 class="subsection-title">Мои продукты</h3>
+            <div id="user-recipe-list" class="sim-prod-list"></div>
+            <div id="user-recipe-empty" class="sim-lb-empty hidden">Пока нет своих рецептов</div>
+            <h3 class="subsection-title">Добавить рецепт</h3>
+            <div class="field"><label for="ur-name">Название</label><input id="ur-name" type="text" maxlength="30" placeholder="Мыло 1.5 л"></div>
+            <div class="field-row">
+                <div class="field"><label for="ur-line">Линия</label>
+                    <select id="ur-line">
+                        <option>LINE_1_1</option><option>LINE_1_2</option><option selected>LINE_1_3</option>
+                        <option>LINE_1_4</option><option>LINE_1_5</option><option>LINE_1_6</option>
+                    </select>
+                </div>
+                <div class="field"><label for="ur-volume">Объём флакона, мл</label><input id="ur-volume" type="number" step="50" value="500" min="50" max="6000"></div>
+            </div>
+            <div class="field-row">
+                <div class="field"><label for="ur-density">Плотность</label><input id="ur-density" type="number" step="0.01" value="1.00" min="0.75" max="1.30"></div>
+                <div class="field"><label for="ur-visc">Вязкость, ед.</label><input id="ur-visc" type="number" step="50" value="0" min="0" max="10000"></div>
+            </div>
+            <div class="modal-actions-grid">
+                <button onclick="userRecipeAdd()" class="btn btn-primary" style="grid-column: span 2;">➕ Добавить</button>
+                <button onclick="userRecipeClear()" class="btn btn-ghost" style="grid-column: span 2;">🗑 Удалить все мои рецепты</button>
             </div>
         </div>
     </div>
@@ -653,18 +882,9 @@
             <button class="modal-close" onclick="closePinChange()">✕</button>
         </header>
         <div class="modal-body">
-            <div class="field">
-                <label for="pin-old">Текущий PIN</label>
-                <input id="pin-old" type="password" inputmode="numeric" maxlength="6" class="pin-input">
-            </div>
-            <div class="field">
-                <label for="pin-new">Новый PIN (4–6 цифр)</label>
-                <input id="pin-new" type="password" inputmode="numeric" maxlength="6" class="pin-input">
-            </div>
-            <div class="field">
-                <label for="pin-new2">Повторите новый PIN</label>
-                <input id="pin-new2" type="password" inputmode="numeric" maxlength="6" class="pin-input">
-            </div>
+            <div class="field"><label for="pin-old">Текущий PIN</label><input id="pin-old" type="password" inputmode="numeric" maxlength="6" class="pin-input"></div>
+            <div class="field"><label for="pin-new">Новый PIN (4–6 цифр)</label><input id="pin-new" type="password" inputmode="numeric" maxlength="6" class="pin-input"></div>
+            <div class="field"><label for="pin-new2">Повторите новый PIN</label><input id="pin-new2" type="password" inputmode="numeric" maxlength="6" class="pin-input"></div>
             <div id="pin-change-error" class="alert alert-danger hidden"></div>
             <button onclick="submitPinChange()" class="btn btn-primary btn-block">Сохранить</button>
         </div>
@@ -676,9 +896,7 @@
      ============================================================ -->
 <div id="eng-confirm-overlay" class="modal-overlay hidden">
     <div class="modal modal-sm">
-        <header class="modal-head">
-            <h2>Несохранённые изменения</h2>
-        </header>
+        <header class="modal-head"><h2>Несохранённые изменения</h2></header>
         <div class="modal-body">
             <p id="eng-confirm-text" class="modal-text"></p>
             <div class="modal-actions">
@@ -700,21 +918,15 @@
             <button class="modal-close" onclick="closeEngMenu()">✕</button>
         </header>
         <div class="modal-body">
-
             <div id="eng-pin-block">
                 <p class="modal-text">Введите PIN для доступа к калибровке.</p>
-                <input id="eng-pin-input" type="password" inputmode="numeric" maxlength="6"
-                       placeholder="••••" class="pin-input"
-                       onkeydown="if(event.key==='Enter') checkEngPin()">
+                <input id="eng-pin-input" type="password" inputmode="numeric" maxlength="6" placeholder="••••" class="pin-input" onkeydown="if(event.key==='Enter') checkEngPin()">
                 <div id="eng-pin-error" class="alert alert-danger hidden">Неверный PIN</div>
                 <button onclick="checkEngPin()" class="btn btn-primary btn-block">Войти</button>
             </div>
 
             <div id="eng-content" class="hidden">
-                <p class="modal-text">
-                    Задайте калибровочные точки: <b>частота на панели (Гц)</b> → <b>измеренная скорость (м/мин)</b>.
-                    Минимум 2 точки, рекомендуется 3–5 в рабочем диапазоне.
-                </p>
+                <p class="modal-text">Задайте калибровочные точки: <b>частота (Гц)</b> → <b>скорость (м/мин)</b>. Минимум 2, рекомендуется 3–5.</p>
 
                 <div class="field">
                     <label for="eng-line-select">Линия</label>
@@ -724,48 +936,36 @@
 
                 <div class="eng-card">
                     <h3>Конвейер</h3>
-                    <table class="eng-table">
-                        <thead><tr><th>Гц</th><th>Скорость, м/мин</th><th></th></tr></thead>
-                        <tbody id="eng-tbody-conveyor"></tbody>
-                    </table>
+                    <table class="eng-table"><thead><tr><th>Гц</th><th>Скорость, м/мин</th><th></th></tr></thead><tbody id="eng-tbody-conveyor"></tbody></table>
                     <button class="btn btn-ghost btn-block" onclick="addEngRow('conveyor')">+ Добавить точку</button>
                     <div class="eng-fit" id="eng-fit-conveyor">—</div>
                     <div class="eng-maxhz-row">
                         <label for="eng-conv-maxhz">Максимум Гц</label>
-                        <input id="eng-conv-maxhz" type="number" step="1" min="1" max="200"
-                               oninput="onEngMaxHz('conveyor', this.value)">
+                        <input id="eng-conv-maxhz" type="number" step="1" min="1" max="200" oninput="onEngMaxHz('conveyor', this.value)">
                         <span class="eng-maxhz-hint" id="eng-conv-maxspeed">—</span>
                     </div>
                 </div>
 
                 <div class="eng-card">
                     <h3>Прижимная лента</h3>
-                    <table class="eng-table">
-                        <thead><tr><th>Гц</th><th>Скорость, м/мин</th><th></th></tr></thead>
-                        <tbody id="eng-tbody-press"></tbody>
-                    </table>
+                    <table class="eng-table"><thead><tr><th>Гц</th><th>Скорость, м/мин</th><th></th></tr></thead><tbody id="eng-tbody-press"></tbody></table>
                     <button class="btn btn-ghost btn-block" onclick="addEngRow('press')">+ Добавить точку</button>
                     <div class="eng-fit" id="eng-fit-press">—</div>
                     <div class="eng-maxhz-row">
                         <label for="eng-press-maxhz">Максимум Гц</label>
-                        <input id="eng-press-maxhz" type="number" step="1" min="1" max="200"
-                               oninput="onEngMaxHz('press', this.value)">
+                        <input id="eng-press-maxhz" type="number" step="1" min="1" max="200" oninput="onEngMaxHz('press', this.value)">
                         <span class="eng-maxhz-hint" id="eng-press-maxspeed">—</span>
                     </div>
                 </div>
 
                 <div class="eng-card">
                     <h3>Обкатчик</h3>
-                    <table class="eng-table">
-                        <thead><tr><th>Гц</th><th>Скорость, м/мин</th><th></th></tr></thead>
-                        <tbody id="eng-tbody-roller"></tbody>
-                    </table>
+                    <table class="eng-table"><thead><tr><th>Гц</th><th>Скорость, м/мин</th><th></th></tr></thead><tbody id="eng-tbody-roller"></tbody></table>
                     <button class="btn btn-ghost btn-block" onclick="addEngRow('roller')">+ Добавить точку</button>
                     <div class="eng-fit" id="eng-fit-roller">—</div>
                     <div class="eng-maxhz-row">
                         <label for="eng-roller-maxhz">Максимум Гц</label>
-                        <input id="eng-roller-maxhz" type="number" step="1" min="1" max="200"
-                               oninput="onEngMaxHz('roller', this.value)">
+                        <input id="eng-roller-maxhz" type="number" step="1" min="1" max="200" oninput="onEngMaxHz('roller', this.value)">
                         <span class="eng-maxhz-hint" id="eng-roller-maxspeed">—</span>
                     </div>
                 </div>
@@ -787,9 +987,40 @@
                     <button onclick="changeEngPin()" class="btn btn-link">Сменить PIN</button>
                 </div>
             </div>
-
         </div>
     </div>
+</div>
+
+<!-- ============================================================
+     МОДАЛКА: ИМЯ ДЛЯ ЛИДЕРБОРДА
+     ============================================================ -->
+<div id="sim-name-overlay" class="modal-overlay hidden">
+    <div class="modal modal-sm">
+        <header class="modal-head"><h2>🏆 Новый рекорд!</h2></header>
+        <div class="modal-body">
+            <p class="modal-text">Введите имя для таблицы лидеров:</p>
+            <input id="sim-name-input" type="text" maxlength="12" class="pin-input" style="font-size:16px;letter-spacing:2px;text-align:left;padding-left:14px;" placeholder="Ваше имя">
+            <div class="modal-actions">
+                <button onclick="simSubmitName()" class="btn btn-primary btn-block">Сохранить</button>
+                <button onclick="simSkipName()" class="btn btn-ghost btn-block">Пропустить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================
+     ОВЕРЛЕЙ СИМУЛЯТОРА
+     ============================================================ -->
+<div id="sim-overlay" class="sim-overlay hidden">
+    <div class="sim-overlay-flash" id="sim-overlay-flash"></div>
+    <div class="sim-overlay-crt">
+        <div id="sim-overlay-badge" class="sim-overlay-badge"></div>
+        <div id="sim-overlay-text" class="sim-overlay-text">—</div>
+        <div id="sim-overlay-points" class="sim-overlay-points"></div>
+        <div id="sim-overlay-sub" class="sim-overlay-sub"></div>
+    </div>
+    <div id="sim-crush-anim" class="sim-crush-anim hidden"></div>
+    <div id="sim-particles" class="sim-particles"></div>
 </div>
 
 <script src="script.js"></script>
