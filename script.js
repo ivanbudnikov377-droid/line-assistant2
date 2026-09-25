@@ -3,58 +3,32 @@
 // ============================================================
 
 // ============================================================
-// 1. СИНХРОНИЗАЦИЯ ОБЪЁМ ↔ ВЕС ↔ ПЛОТНОСТЬ
-// ============================================================
-
-let lastFillSource = 'vol';
-
-function syncVolumeWeight(source) {
-    const volEl = document.getElementById('volumeInput');
-    const wEl   = document.getElementById('weightInput');
-    const dEl   = document.getElementById('densityInput');
-
-    let d = parseFloat(dEl.value) || 1.0;
-    if (d < 0.75) d = 0.75;
-    if (d > 1.30) d = 1.30;
-    if (parseFloat(dEl.value) !== d) dEl.value = d.toFixed(2);
-
-    if (source === 'vol') {
-        const v = parseFloat(volEl.value) || 0;
-        wEl.value = (v * d).toFixed(1);
-        lastFillSource = 'vol';
-    } else if (source === 'weight') {
-        const w = parseFloat(wEl.value) || 0;
-        volEl.value = (w / d).toFixed(1);
-        lastFillSource = 'weight';
-    } else if (source === 'density') {
-        if (lastFillSource === 'vol') {
-            const v = parseFloat(volEl.value) || 0;
-            wEl.value = (v * d).toFixed(1);
-        } else {
-            const w = parseFloat(wEl.value) || 0;
-            volEl.value = (w / d).toFixed(1);
-        }
-    }
-    runUniversalCalculation();
-}
-
-// ============================================================
-// 2. ОСНОВНОЙ РАСЧЁТ ДЛЯ НАЛИВА
+// 1. ОСНОВНОЙ РАСЧЁТ ДЛЯ НАЛИВА
 // ============================================================
 
 function runUniversalCalculation() {
     const line = document.getElementById('lineSelect').value;
-    const rawHeight = document.getElementById('bottleHeightInput').value;
-    const rawVol = document.getElementById('volumeInput').value;
-    const rawVisc = document.getElementById('viscosityInput').value;
-    const rawDensity = document.getElementById('densityInput').value;
+    const rawHeight    = document.getElementById('bottleHeightInput').value;
+    const rawBottleVol = document.getElementById('bottleVolumeInput').value;
+    const rawWeight    = document.getElementById('targetWeightInput').value;
+    const rawVisc      = document.getElementById('viscosityInput').value;
+    const rawDensity   = document.getElementById('densityInput').value;
 
     const bottleHeight = rawHeight ? parseFloat(rawHeight) : 245;
-    const vol = rawVol ? parseFloat(rawVol) : 600;
-    const visc = rawVisc ? parseFloat(rawVisc) : 0;
-    const density = rawDensity ? parseFloat(rawDensity) : 1.0;
+    const bottleVol    = rawBottleVol ? parseFloat(rawBottleVol) : 600;
+    const targetWeight = rawWeight ? parseFloat(rawWeight) : 600;
+    const visc         = rawVisc ? parseFloat(rawVisc) : 0;
+    let   density      = rawDensity ? parseFloat(rawDensity) : 1.0;
 
-    if (bottleHeight <= 0 || vol <= 0 || visc < 0 || density <= 0) return;
+    if (density < 0.75) density = 0.75;
+    if (density > 1.30) density = 1.30;
+
+    if (bottleHeight <= 0 || bottleVol <= 0 || targetWeight <= 0 || visc < 0 || density <= 0) return;
+
+    const vol = targetWeight / density;
+
+    const hintEl = document.getElementById('fillVolumeHintValue');
+    if (hintEl) hintEl.textContent = vol.toFixed(1) + ' мл';
 
     let lineNum = "1.1";
     if (line === "LINE_1_2") lineNum = "1.2";
@@ -96,12 +70,8 @@ function runUniversalCalculation() {
     let delay = 0.0;
 
     if (isSmallLiquidFormat) {
-        speed1 = 25.00;
-        speed2 = 48.00;
-        speed3 = 28.00;
-        k_t2 = 0.10;
-        k_t3 = 0.73;
-
+        speed1 = 25.00; speed2 = 48.00; speed3 = 28.00;
+        k_t2 = 0.10; k_t3 = 0.73;
         ls1 = 70; ls2 = 75; ls3 = 65;
         bp = 35;
         tp = Math.round(bottleHeight - 30);
@@ -109,9 +79,7 @@ function runUniversalCalculation() {
         np1 = 40;
         np2 = Math.round(bottleHeight * 0.20);
         np3 = Math.round(bottleHeight * 0.80);
-
-        conv_m = 60.00;
-        conv_l = 0.00;
+        conv_m = 60.00; conv_l = 0.00;
         sh_in_c = 0.0; sh_in_o = 0.5; sh_out_c = 0.2;
         delay = 1.0;
 
@@ -241,11 +209,8 @@ function runUniversalCalculation() {
     ls2 = Math.min(ls2, 100);
     ls3 = Math.min(ls3, 100);
 
-    // === Расчёт веса из явной плотности ===
-    const tw = Math.round(vol * density);
-
-    let t2 = Math.round(tw * k_t2);
-    let t3 = Math.round(tw * k_t3);
+    let t2 = Math.round(vol * k_t2);
+    let t3 = Math.round(vol * k_t3);
 
     const prodLabel = "РЕЦЕПТ № " + lineNum;
     const stopConv = (vol <= 1000);
@@ -273,7 +238,7 @@ function runUniversalCalculation() {
         'val_wait_point': wp,
         'val_top_pour': tp,
         'val_bottom_pos': bp,
-        'val_total_weight': tw,
+        'val_fill_volume': vol.toFixed(1),
         'val_shiber_close_in': sh_in_c.toFixed(1),
         'val_shiber_open_in': sh_in_o.toFixed(1),
         'val_shiber_close_out': sh_out_c.toFixed(1),
@@ -303,7 +268,7 @@ function runUniversalCalculation() {
 }
 
 // ============================================================
-// 3. ЛОГИКА ВКЛАДОК
+// 2. ЛОГИКА ВКЛАДОК
 // ============================================================
 
 function switchTab(tabName) {
@@ -316,7 +281,7 @@ function switchTab(tabName) {
 }
 
 // ============================================================
-// 4. КАЛЬКУЛЯТОР ЭТИКЕТОВЩИКА
+// 3. КАЛЬКУЛЯТОР ЭТИКЕТОВЩИКА
 // ============================================================
 
 const LABELER_DEFAULTS_LINE_1_1 = {
@@ -376,10 +341,7 @@ function getUsableCoeffs(line) {
     return ready ? c : null;
 }
 
-function takeEngSnapshot() {
-    engSnapshot = JSON.stringify(labelerCoeffs);
-}
-
+function takeEngSnapshot() { engSnapshot = JSON.stringify(labelerCoeffs); }
 function isEngDirty() {
     return engSnapshot !== null && JSON.stringify(labelerCoeffs) !== engSnapshot;
 }
@@ -477,7 +439,7 @@ function resetLabelerForm() {
 }
 
 // ============================================================
-// 5. УГОЛ НОЖА
+// 4. УГОЛ НОЖА
 // ============================================================
 
 function updateKnifeInstructions() {
@@ -497,12 +459,10 @@ function updateKnifeInstructions() {
     let html = '';
 
     html += `<div class="knife-section-title">📐 Поперечная калибровка (угол стенки)</div>`;
-
     html += `<div class="step-item">
         <span class="step-number">1</span>
         <span class="step-text"><strong>Инклинометр на конвейере поперёк движения</strong> → <span class="step-highlight">обнулить</span> (конвейер остановлен)</span>
     </div>`;
-
     html += `<div class="step-item step-active">
         <span class="step-number">2</span>
         <span class="step-text"><strong>Флакон под прижимом</strong> → замер наклона стенки по центру: <span class="step-highlight">${wallAngle.toFixed(1)}°</span></span>
@@ -519,24 +479,20 @@ function updateKnifeInstructions() {
         <span class="step-number">3</span>
         <span class="step-text"><strong>Перенести угол ${wallAngle.toFixed(1)}°</strong> на соответствующий нож</span>
     </div>`;
-
     html += `<div class="step-item">
         <span class="step-number">4</span>
         <span class="step-text"><strong>Повторить процедуру</strong> для <span class="step-highlight">противоположной стороны</span></span>
     </div>`;
 
     html += `<div class="knife-section-title">➡️ Продольная калибровка (параллельность конвейеру)</div>`;
-
     html += `<div class="step-item">
         <span class="step-number">5</span>
         <span class="step-text"><strong>Инклинометр вдоль движения конвейера</strong> → <span class="step-highlight">обнулить</span></span>
     </div>`;
-
     html += `<div class="step-item">
         <span class="step-number">6</span>
         <span class="step-text"><strong>Инклинометр к торцу ножа</strong> → выставить <span class="step-highlight">0°</span></span>
     </div>`;
-
     html += `<div class="step-item">
         <span class="step-number">7</span>
         <span class="step-text"><strong>Повторить процедуру</strong> для <span class="step-highlight">противоположной стороны</span></span>
@@ -544,22 +500,18 @@ function updateKnifeInstructions() {
 
     if (hasRounding) {
         html += `<div class="knife-section-title">🔄 Скругление (для флаконов со скруглением)</div>`;
-
         html += `<div class="step-item step-active">
             <span class="step-number">8</span>
             <span class="step-text"><strong>Замер угла скругления транспортиром</strong> → <span class="step-highlight">${roundingAngle.toFixed(1)}°</span> → перенести на <strong>поворот ножа</strong></span>
         </div>`;
-
         html += `<div class="step-item">
             <span class="step-number">9</span>
             <span class="step-text"><strong>Расстояние от ножа до флакона</strong> в самой широкой части <span class="step-highlight">≤ 5 мм</span> (по горизонтали)</span>
         </div>`;
-
         html += `<div class="step-item">
             <span class="step-number">10</span>
             <span class="step-text"><strong>Вылет (язык) этикетки</strong> = расстояние между ножом и <span class="step-highlight">самой узкой частью стенки</span> флакона (на обеих сторонах)</span>
         </div>`;
-
         html += `<div class="step-item step-warning">
             <span class="step-number">💡</span>
             <span class="step-text">Передний край этикетки ложится строго в нужное место с учётом скругления</span>
@@ -567,7 +519,6 @@ function updateKnifeInstructions() {
     }
 
     let recommendation = '';
-
     if (wallAngle > 0) {
         recommendation = `Установите нож под углом ${wallAngle.toFixed(1)}° (поперечная калибровка) и 0° (продольная калибровка)`;
         if (hasRounding && roundingAngle > 0) {
@@ -581,13 +532,10 @@ function updateKnifeInstructions() {
 
     recommendationText.textContent = recommendation;
     recommendationBlock.classList.remove('hidden');
-
     container.innerHTML = html;
 }
 
-function checkKnifeAngles() {
-    updateKnifeInstructions();
-}
+function checkKnifeAngles() { updateKnifeInstructions(); }
 
 function resetKnifeForm() {
     document.getElementById('knife-bottle-type').value = 'flat';
@@ -597,7 +545,7 @@ function resetKnifeForm() {
 }
 
 // ============================================================
-// 6. УКУПОР
+// 5. УКУПОР
 // ============================================================
 
 let selectedCapType = 'cap';
@@ -771,7 +719,96 @@ function resetCappingForm() {
 }
 
 // ============================================================
-// 7. ЖУРНАЛ НАЛАДОК
+// 6. ОТПРАВКА В ПЛК
+// ============================================================
+
+function openSendModal() {
+    renderSendParams();
+    document.getElementById('send-modal-overlay').classList.remove('hidden');
+}
+
+function closeSendModal() {
+    document.getElementById('send-modal-overlay').classList.add('hidden');
+}
+
+function renderSendParams() {
+    const mainList = document.getElementById('send-list-main');
+    const timingList = document.getElementById('send-list-timing');
+
+    const get = (id) => document.getElementById(id)?.textContent || '—';
+
+    mainList.innerHTML = `
+        <li><span>1. Скорость насоса</span><b>${get('val_pump_speed_1')}</b></li>
+        <li><span>2. Скорость насоса</span><b>${get('val_pump_speed_2')}</b></li>
+        <li><span>3. Скорость насоса</span><b>${get('val_pump_speed_3')}</b></li>
+        <li><span>1. Скорость подъёма</span><b>${get('val_lift_speed_1')}</b></li>
+        <li><span>2. Скорость подъёма</span><b>${get('val_lift_speed_2')}</b></li>
+        <li><span>3. Скорость подъёма</span><b>${get('val_lift_speed_3')}</b></li>
+        <li><span>1. Положение сопла</span><b>${get('val_nozzle_pos_1')}</b></li>
+        <li><span>2. Положение сопла</span><b>${get('val_nozzle_pos_2')}</b></li>
+        <li><span>3. Положение сопла</span><b>${get('val_nozzle_pos_3')}</b></li>
+        <li><span>Нижн. положение сопла</span><b>${get('val_bottom_pos')}</b></li>
+        <li><span>Верхний налив</span><b>${get('val_top_pour')}</b></li>
+        <li><span>Верхнее положение сопла</span><b>${get('val_wait_point')}</b></li>
+        <li><span>Общий объём заполнения</span><b>${get('val_fill_volume')} мл</b></li>
+    `;
+
+    timingList.innerHTML = `
+        <li><span>Объём перехода 2</span><b>${get('val_trans_volume_2')}</b></li>
+        <li><span>Объём перехода 3</span><b>${get('val_trans_volume_3')}</b></li>
+        <li><span>Закр. шибера вход</span><b>${get('val_shiber_close_in')}</b></li>
+        <li><span>Откр. шибера вход</span><b>${get('val_shiber_open_in')}</b></li>
+        <li><span>Закр. шибера выход</span><b>${get('val_shiber_close_out')}</b></li>
+        <li><span>Задержка подъёма</span><b>${get('sub_nozzle_lift_delay')}</b></li>
+        <li><span>Скорость опускания траверсы</span><b>${get('val_traverse_down_speed')}</b></li>
+        <li><span>Основная скорость конвейера</span><b>${get('val_conveyor_main_speed')}</b></li>
+        <li><span>Низкая скорость конвейера</span><b>${get('val_conveyor_low_speed')}</b></li>
+        <li><span>Рецепт</span><b>${get('val_product_label')}</b></li>
+    `;
+}
+
+function copySendParams() {
+    const lines = [];
+    document.querySelectorAll('#send-params-block .send-list li').forEach((li) => {
+        const label = li.querySelector('span')?.textContent || '';
+        const value = li.querySelector('b')?.textContent || '';
+        lines.push(`${label}: ${value}`);
+    });
+    const text = lines.join('\n');
+
+    navigator.clipboard.writeText(text).then(() => {
+        const btns = document.querySelectorAll('#send-modal-overlay .btn-primary');
+        btns.forEach((btn) => {
+            const original = btn.textContent;
+            btn.textContent = '✅ Скопировано!';
+            setTimeout(() => { btn.textContent = original; }, 1800);
+        });
+    }).catch(() => alert('Не удалось скопировать. Выделите вручную.'));
+}
+
+// ============================================================
+// 7. ПОДЕЛИТЬСЯ ССЫЛКОЙ (Web Share API)
+// ============================================================
+
+function shareApp() {
+    const url = window.location.origin + window.location.pathname;
+    const title = 'Mobile Assistant 2.0';
+    const text = 'Помощник наладчика линии розлива';
+
+    if (navigator.share) {
+        navigator.share({ title, text, url }).catch(() => {});
+    } else {
+        // Fallback: копируем в буфер
+        navigator.clipboard.writeText(url).then(() => {
+            alert('Ссылка скопирована:\n' + url);
+        }).catch(() => {
+            prompt('Скопируйте ссылку:', url);
+        });
+    }
+}
+
+// ============================================================
+// 8. ЖУРНАЛ НАЛАДОК
 // ============================================================
 
 const JOURNAL_KEY = 'line-assistant-journal';
@@ -803,22 +840,20 @@ function closeJournal() {
 }
 
 function saveCurrentToJournal() {
-    // Читаем текущие значения из формы
     const line = document.getElementById('lineSelect').value;
     const lineName = document.getElementById('lineSelect').selectedOptions[0].textContent;
     const bottleHeight = parseFloat(document.getElementById('bottleHeightInput').value) || 0;
-    const volume = parseFloat(document.getElementById('volumeInput').value) || 0;
-    const weight = parseFloat(document.getElementById('weightInput').value) || 0;
+    const bottleVolume = parseFloat(document.getElementById('bottleVolumeInput').value) || 0;
+    const targetWeight = parseFloat(document.getElementById('targetWeightInput').value) || 0;
     const density = parseFloat(document.getElementById('densityInput').value) || 1.0;
     const viscosity = parseFloat(document.getElementById('viscosityInput').value) || 0;
 
-    if (volume <= 0 || bottleHeight <= 0) {
-        alert('Заполните высоту флакона и объём перед сохранением.');
+    if (bottleHeight <= 0 || targetWeight <= 0) {
+        alert('Заполните высоту флакона и целевой вес перед сохранением.');
         return;
     }
 
-    // Извлекаем расчётные данные
-    const totalWeight = parseFloat(document.getElementById('val_total_weight').textContent) || 0;
+    const fillVolume = parseFloat(document.getElementById('val_fill_volume').textContent) || 0;
     const delay = parseFloat(document.getElementById('sub_nozzle_lift_delay').textContent) || 0;
 
     const entry = {
@@ -827,20 +862,19 @@ function saveCurrentToJournal() {
             day: '2-digit', month: '2-digit', year: 'numeric',
             hour: '2-digit', minute: '2-digit'
         }),
-        line, lineName, bottleHeight, volume, weight, density, viscosity,
-        totalWeight, delay
+        line, lineName, bottleHeight,
+        bottleVolume, targetWeight, density,
+        fillVolume, viscosity, delay
     };
 
     journal.unshift(entry);
     if (journal.length > JOURNAL_MAX) journal = journal.slice(0, JOURNAL_MAX);
     saveJournalToStorage();
 
-    // Если открыта модалка журнала — перерисуем
     const overlay = document.getElementById('journal-overlay');
     if (!overlay.classList.contains('hidden')) {
         renderJournal();
     } else {
-        // Иначе — просто показали уведомление
         alert('Сохранено в журнал.');
     }
 }
@@ -864,12 +898,12 @@ function renderJournal() {
                 <button class="journal-delete" onclick="deleteJournalEntry('${e.id}')" title="Удалить">✕</button>
             </div>
             <div class="journal-entry-grid">
-                <div><span>Объём</span><b>${e.volume} мл</b></div>
-                <div><span>Вес</span><b>${e.weight} г</b></div>
+                <div><span>Флакон</span><b>${e.bottleVolume} мл</b></div>
+                <div><span>Целевой вес</span><b>${e.targetWeight} г</b></div>
                 <div><span>Плотность</span><b>${e.density.toFixed(2)}</b></div>
+                <div><span>Объём заполн.</span><b>${e.fillVolume.toFixed(1)} мл</b></div>
                 <div><span>Вязкость</span><b>${e.viscosity} ед.</b></div>
                 <div><span>Высота</span><b>${e.bottleHeight} мм</b></div>
-                <div><span>Задержка</span><b>${e.delay.toFixed(1)} с</b></div>
             </div>
             <div class="journal-entry-footer">
                 <button class="btn btn-ghost btn-sm" onclick="restoreJournalEntry('${e.id}')">↩ Загрузить в форму</button>
@@ -891,8 +925,8 @@ function restoreJournalEntry(id) {
 
     document.getElementById('lineSelect').value = e.line;
     document.getElementById('bottleHeightInput').value = e.bottleHeight;
-    document.getElementById('volumeInput').value = e.volume;
-    document.getElementById('weightInput').value = e.weight;
+    document.getElementById('bottleVolumeInput').value = e.bottleVolume;
+    document.getElementById('targetWeightInput').value = e.targetWeight;
     document.getElementById('densityInput').value = e.density;
     document.getElementById('viscosityInput').value = e.viscosity;
 
@@ -926,7 +960,7 @@ function exportJournal() {
 }
 
 // ============================================================
-// 8. ИНЖЕНЕРНОЕ МЕНЮ
+// 9. ИНЖЕНЕРНОЕ МЕНЮ
 // ============================================================
 
 function openEngMenu() {
@@ -1329,7 +1363,7 @@ function importEngCoeffs() {
 }
 
 // ============================================================
-// 9. СМЕНА PIN И ПОДТВЕРЖДЕНИЯ
+// 10. СМЕНА PIN И ПОДТВЕРЖДЕНИЯ
 // ============================================================
 
 function askUnsavedChanges(text, onProceed) {
@@ -1390,7 +1424,7 @@ function submitPinChange() {
 }
 
 // ============================================================
-// 10. ДРОПДАУН ЭКСПОРТА
+// 11. ДРОПДАУН ЭКСПОРТА
 // ============================================================
 
 function toggleExportMenu(event) {
@@ -1410,7 +1444,7 @@ document.addEventListener('click', (e) => {
 });
 
 // ============================================================
-// 11. ESC-ОБРАБОТЧИК
+// 12. ESC-ОБРАБОТЧИК
 // ============================================================
 
 document.addEventListener('keydown', (e) => {
@@ -1421,36 +1455,26 @@ document.addEventListener('keydown', (e) => {
     const confirmOverlay = document.getElementById('eng-confirm-overlay');
     const pinChangeOverlay = document.getElementById('eng-pin-change-overlay');
     const journalOverlay = document.getElementById('journal-overlay');
+    const sendOverlay = document.getElementById('send-modal-overlay');
     const engOverlay = document.getElementById('eng-menu-overlay');
 
-    if (!confirmOverlay.classList.contains('hidden')) {
-        engConfirmCancel();
-        return;
-    }
-    if (!pinChangeOverlay.classList.contains('hidden')) {
-        closePinChange();
-        return;
-    }
-    if (!journalOverlay.classList.contains('hidden')) {
-        closeJournal();
-        return;
-    }
-    if (!engOverlay.classList.contains('hidden')) {
-        closeEngMenu();
-    }
+    if (!confirmOverlay.classList.contains('hidden')) { engConfirmCancel(); return; }
+    if (!pinChangeOverlay.classList.contains('hidden')) { closePinChange(); return; }
+    if (!journalOverlay.classList.contains('hidden')) { closeJournal(); return; }
+    if (!sendOverlay.classList.contains('hidden')) { closeSendModal(); return; }
+    if (!engOverlay.classList.contains('hidden')) { closeEngMenu(); }
 });
 
-// Закрытие модалок по клику вне окна
-['journal-overlay', 'eng-menu-overlay'].forEach(id => {
+['journal-overlay', 'eng-menu-overlay', 'send-modal-overlay'].forEach(id => {
     document.getElementById(id)?.addEventListener('click', (e) => {
         if (e.target.id === id) {
             if (id === 'journal-overlay') closeJournal();
+            else if (id === 'send-modal-overlay') closeSendModal();
             else closeEngMenu();
         }
     });
 });
 
-// Защита от случайного закрытия страницы при несохранённых правках
 window.addEventListener('beforeunload', (e) => {
     if (engPinUnlocked && isEngDirty()) {
         e.preventDefault();
@@ -1459,22 +1483,28 @@ window.addEventListener('beforeunload', (e) => {
 });
 
 // ============================================================
-// 12. ИНИЦИАЛИЗАЦИЯ
+// 13. ИНИЦИАЛИЗАЦИЯ
 // ============================================================
 
 window.addEventListener('DOMContentLoaded', () => {
     initEngStorage();
     loadJournal();
-    syncVolumeWeight('vol');
+    runUniversalCalculation();
     switchTab('filling');
     calculateLabelerFrequencies();
     updateKnifeInstructions();
     selectCappingType('cap');
 
-    // Привязка кнопок модалки подтверждения
     document.getElementById('eng-confirm-save')?.addEventListener('click', engConfirmSave);
     document.getElementById('eng-confirm-discard')?.addEventListener('click', engConfirmDiscard);
     document.getElementById('eng-confirm-cancel')?.addEventListener('click', engConfirmCancel);
+
+    // PWA
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./service-worker.js').catch((e) => {
+            console.log('SW не зарегистрирован:', e);
+        });
+    }
 
     console.log('✅ Mobile Assistant 2.0 загружен');
 });
