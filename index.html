@@ -3,37 +3,191 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Delta PLC Mobile Assistant</title>
+    <meta name="theme-color" content="#0a0e14">
+    <title>Mobile Assistant 2.0</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<!-- ============================================================
-     КНОПКИ НАВИГАЦИИ
-     ============================================================ -->
-<div class="max-w-md mx-auto bg-zinc-950 px-4 pt-4 flex gap-2">
-    <button id="btn-tab-filling" onclick="switchTab('filling')" class="flex-1 bg-amber-600 text-black font-black py-2 rounded text-xs uppercase tracking-wider transition cursor-pointer">
-        💧 Налив
+<nav class="app-nav" role="tablist">
+    <button id="btn-tab-filling" class="tab tab-active" onclick="switchTab('filling')" role="tab">
+        <span class="tab-icon">💧</span><span class="tab-label">Налив</span>
     </button>
-    <button id="btn-tab-labeling" onclick="switchTab('labeling')" class="flex-1 bg-zinc-900 text-zinc-400 font-bold py-2 rounded text-xs uppercase tracking-wider transition border border-zinc-800 cursor-pointer">
-        🏷 Этикетка
+    <button id="btn-tab-labeling" class="tab" onclick="switchTab('labeling')" role="tab">
+        <span class="tab-icon">🏷</span><span class="tab-label">Этикетовщик</span>
     </button>
-    <button id="btn-tab-capping" onclick="switchTab('capping')" class="flex-1 bg-zinc-900 text-zinc-400 font-bold py-2 rounded text-xs uppercase tracking-wider transition border border-zinc-800 cursor-pointer">
-        🏺 Укупор
+    <button id="btn-tab-capping" class="tab" onclick="switchTab('capping')" role="tab">
+        <span class="tab-icon">🏺</span><span class="tab-label">Укупор</span>
     </button>
-</div>
+    <button id="btn-tab-help" class="tab" onclick="switchTab('help')" role="tab">
+        <span class="tab-icon">❓</span><span class="tab-label">Справка</span>
+    </button>
+</nav>
+
+<main class="app-main">
 
 <!-- ============================================================
      ВКЛАДКА: НАЛИВ
      ============================================================ -->
-<div id="content-filling" class="app-container">
-    
-    <div class="input-panel">
-        <h3 class="panel-section-title">⚙️ Параметры Наладки</h3>
-        
-        <div class="form-group">
-            <label for="lineSelect">Технологическая линия:</label>
-            <select id="lineSelect" onchange="runUniversalCalculation()">
+<section id="content-filling" class="tab-content tab-content-active">
+    <div class="grid-2">
+
+        <aside class="card">
+            <h2 class="card-title">Параметры наладки</h2>
+
+            <div class="field">
+                <label for="lineSelect">Технологическая линия</label>
+                <select id="lineSelect" onchange="runUniversalCalculation()">
+                    <option value="LINE_1_1">Линия 1.1</option>
+                    <option value="LINE_1_2">Линия 1.2</option>
+                    <option value="LINE_1_3" selected>Линия 1.3</option>
+                    <option value="LINE_1_4">Линия 1.4</option>
+                    <option value="LINE_1_5">Линия 1.5</option>
+                    <option value="LINE_1_6">Линия 1.6</option>
+                </select>
+            </div>
+
+            <div class="field">
+                <label for="bottleHeightInput">Высота флакона, мм</label>
+                <input type="number" id="bottleHeightInput" value="245" min="50" max="500" step="5"
+                       oninput="runUniversalCalculation()">
+            </div>
+
+            <div class="field-row">
+                <div class="field">
+                    <label for="volumeInput">Объём заполнения, мл</label>
+                    <input id="volumeInput" type="number" step="1" value="600" min="50" max="6000"
+                           oninput="syncVolumeWeight('vol')">
+                </div>
+                <div class="field">
+                    <label for="weightInput">Целевой вес, г</label>
+                    <input id="weightInput" type="number" step="1" value="600" min="50" max="6000"
+                           oninput="syncVolumeWeight('weight')">
+                </div>
+            </div>
+
+            <div class="field">
+                <label for="densityInput">Плотность продукта, г/мл</label>
+                <input id="densityInput" type="number" step="0.01" value="1.00" min="0.75" max="1.30"
+                       oninput="syncVolumeWeight('density')">
+                <p class="field-hint">Вода 1.00 · Мыло 1.02–1.05 · Гели/ПАВ 0.98–1.10</p>
+            </div>
+
+            <div class="field">
+                <label for="viscosityInput">Вязкость, ед.</label>
+                <input type="number" id="viscosityInput" value="0" min="0" max="10000" step="50"
+                       oninput="runUniversalCalculation()">
+            </div>
+
+            <p class="field-hint">💧 0 ед. — вода · 🍯 1450–1850 ед. — мыло</p>
+
+            <div id="viscosityNotice" class="alert alert-warning hidden">
+                Вязкость продукта превышает 1000 ед. Допускается режим верхнего налива для снижения износа привода траверсы.
+            </div>
+
+            <div class="alert alert-danger alert-pulse">
+                <strong>Задержка открытия входного шибера ниже 0,4 с критически опасна</strong>
+                <span>Недопустимый режим работы. Требуется немедленная корректировка.</span>
+            </div>
+
+            <div class="disclaimer">
+                <strong>Внимание.</strong>
+                Данные настройки — <em>рекомендация</em>, а не принуждение. Финальная корректировка уставок остаётся за наладчиком линии.
+            </div>
+
+            <div class="btn-row">
+                <button onclick="saveCurrentToJournal()" class="btn btn-primary">📌 Сохранить в журнал</button>
+            </div>
+        </aside>
+
+        <section class="card card-flush">
+            <div class="plc">
+                <header class="plc-head">
+                    <span class="plc-brand">ПЛК</span>
+                    <span class="plc-mode">AUTO</span>
+                </header>
+
+                <div class="plc-screen">
+                    <div class="plc-col">
+                        <div class="plc-nozzle">
+                            <span class="plc-nozzle-icon">💧</span>
+                            <span class="plc-nozzle-label">НАЗАД</span>
+                        </div>
+                        <div class="plc-row"><span>3. Скорость под.</span><b id="val_lift_speed_3">0</b></div>
+                        <div class="plc-row"><span>3. Полож. сопел</span><b id="val_nozzle_pos_3">0</b></div>
+                        <div class="plc-row"><span>2. Скорость под.</span><b id="val_lift_speed_2">0</b></div>
+                        <div class="plc-row"><span>2. Полож. сопел</span><b id="val_nozzle_pos_2">0</b></div>
+                        <div class="plc-row"><span>1. Скорость под.</span><b id="val_lift_speed_1">0</b></div>
+                        <div class="plc-row"><span>1. Полож. сопел</span><b id="val_nozzle_pos_1">0</b></div>
+                    </div>
+
+                    <div class="plc-col plc-col-wide">
+                        <div class="plc-row"><span>3. Скорость насоса</span><b id="val_pump_speed_3">0.00</b></div>
+                        <div class="plc-row"><span>3. Объём перехода</span><b id="val_trans_volume_3">0</b></div>
+                        <div class="plc-row"><span>2. Скорость насоса</span><b id="val_pump_speed_2" class="plc-multiline">0.00</b></div>
+                        <div class="plc-row"><span>2. Объём перехода</span><b id="val_trans_volume_2">0</b></div>
+                        <div class="plc-row"><span>1. Скорость насоса</span><b id="val_pump_speed_1">0.00</b></div>
+
+                        <div class="plc-divider"></div>
+
+                        <div class="plc-row"><span>Верх. полож. сопла</span><b id="val_wait_point">0</b></div>
+                        <div class="plc-row"><span>Верхний налив</span><b id="val_top_pour">0</b></div>
+                        <div class="plc-row"><span>Нижн. полож. сопла</span><b id="val_bottom_pos">0</b></div>
+                        <div class="plc-row"><span>Целевой вес, г</span><b id="val_total_weight">0</b></div>
+
+                        <div class="plc-divider"></div>
+
+                        <div class="plc-row"><span>Закр. шибера вход</span><b id="val_shiber_close_in">0.0</b></div>
+                        <div class="plc-row"><span>Откр. шибера вход</span><b id="val_shiber_open_in">0.0</b></div>
+                        <div class="plc-row"><span>Закр. шибера выход</span><b id="val_shiber_close_out">0.0</b></div>
+                        <div class="plc-row"><span>Скор. опуск. трав.</span><b id="val_traverse_down_speed">0</b></div>
+                        <div class="plc-row"><span>Осн. скор. конв.</span><b id="val_conveyor_main_speed">0.00</b></div>
+                        <div class="plc-row"><span>Низк. скор. конв.</span><b id="val_conveyor_low_speed">0.00</b></div>
+
+                        <div class="plc-recipe">
+                            <div class="recipe-nav">
+                                <span>▲</span><b id="val_line_num">1</b><span>▼</span>
+                            </div>
+                            <span class="recipe-name" id="val_product_label">РЕЦЕПТ № 1.1</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="plc-sub">
+                    <h3>Настройки ПЛК · экран задержек</h3>
+                    <div class="plc-sub-row">
+                        <span>Блокировка конвейера</span>
+                        <span class="badge" id="sub_conveyor_stop_badge">ЗАПУСТИТЬ</span>
+                    </div>
+                    <div class="plc-sub-row is-hl">
+                        <span>Задержка подъёма (погружение)</span>
+                        <span class="plc-val" id="sub_nozzle_lift_delay">0.0 с</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+</section>
+
+<!-- ============================================================
+     ВКЛАДКА: ЭТИКЕТОВЩИК
+     ============================================================ -->
+<section id="content-labeling" class="tab-content">
+
+    <div class="page-head">
+        <h1>Этикетовщик</h1>
+        <p>Калибровка частот и настройка угла ножа</p>
+    </div>
+
+    <div id="labeler-calib-warning" class="alert alert-warning hidden"></div>
+
+    <div class="card">
+        <h2 class="card-title">Калькулятор частот</h2>
+
+        <div class="field">
+            <label for="labelerLineSelect">Технологическая линия</label>
+            <select id="labelerLineSelect" onchange="calculateLabelerFrequencies()">
                 <option value="LINE_1_1">Линия 1.1</option>
                 <option value="LINE_1_2">Линия 1.2</option>
                 <option value="LINE_1_3" selected>Линия 1.3</option>
@@ -43,403 +197,530 @@
             </select>
         </div>
 
-        <div class="form-group">
-            <label for="bottleHeightInput">Высота флакона по рулетке (мм):</label>
-            <input type="number" id="bottleHeightInput" value="245" min="50" max="500" step="5" oninput="runUniversalCalculation()">
+        <div class="mode-toggle">
+            <button id="mode-btn-speed" class="mode-btn mode-active" onclick="setLabelerMode('speed')">📏 Скорость, м/мин</button>
+            <button id="mode-btn-hz" class="mode-btn" onclick="setLabelerMode('hz')">⚙ Hz конвейера</button>
         </div>
 
-        <div class="form-group-row">
-            <div class="form-group-half">
-                <label for="volumeInput">Объем тары (мл):</label>
-                <input type="number" id="volumeInput" value="600" min="100" max="6000" step="50" oninput="runUniversalCalculation()">
+        <div class="field">
+            <label id="labeler-input-label" for="conveyor-speed-input">📏 Скорость конвейера, м/мин</label>
+            <div class="input-with-unit">
+                <input id="conveyor-speed-input" type="number" step="0.1" value="14.0" min="0" max="30"
+                       oninput="calculateLabelerFrequencies()">
+                <span class="unit labeler-unit">м/мин</span>
             </div>
-            <div class="form-group-half">
-                <label for="viscosityInput">Вязкость (ед.):</label>
-                <input type="number" id="viscosityInput" value="0" min="0" max="10000" step="50" oninput="runUniversalCalculation()">
-            </div>
-        </div>
-        
-        <div class="viscosity-hints">
-            <span>💧 0 ед. — Аспирин / Вода | 🍯 1450-1850 ед. — Мыло Milana</span>
+            <p class="field-hint">Замерьте ручным тахометром скорость ленты конвейера</p>
         </div>
 
-        <div class="engineer-disclaimer">
-            ⚠️ ВНИМАНИЕ:<br>
-            Данные настройки являются <span>РЕКОМЕНДАЦИЕЙ</span>, а не принуждением! Финальная корректировка уставок остается за наладчиком линии розлива.
+        <h3 class="subsection-title">Рассчитанные частоты</h3>
+
+        <div class="drive-list">
+            <div class="drive-result">
+                <div class="drive-head">
+                    <span class="drive-name">Конвейер</span>
+                    <span class="drive-freq"><b id="labeler-conveyor-freq">—</b> <em>Гц</em></span>
+                </div>
+                <div class="progress"><div id="labeler-conveyor-bar" class="progress-fill bar-ok" style="width:0%"></div></div>
+                <div class="drive-foot"><span>0 Гц</span><span id="labeler-conveyor-max">макс: —</span></div>
+            </div>
+
+            <div class="drive-result">
+                <div class="drive-head">
+                    <span class="drive-name">Прижимная лента</span>
+                    <span class="drive-freq"><b id="labeler-press-freq">—</b> <em>Гц</em></span>
+                </div>
+                <div class="progress"><div id="labeler-press-bar" class="progress-fill bar-ok" style="width:0%"></div></div>
+                <div class="drive-foot"><span>0 Гц</span><span id="labeler-press-max">макс: —</span></div>
+            </div>
+
+            <div class="drive-result">
+                <div class="drive-head">
+                    <span class="drive-name">Обкатчик</span>
+                    <span class="drive-freq"><b id="labeler-roller-freq">—</b> <em>Гц</em></span>
+                </div>
+                <div class="progress"><div id="labeler-roller-bar" class="progress-fill bar-ok" style="width:0%"></div></div>
+                <div class="drive-foot"><span>0 Гц</span><span id="labeler-roller-max">макс: —</span></div>
+            </div>
+        </div>
+
+        <p class="field-hint" id="labeler-calc-speed">—</p>
+
+        <div class="btn-row">
+            <button onclick="resetLabelerForm()" class="btn btn-secondary">🔄 Сбросить</button>
+        </div>
+
+        <div class="callout callout-success">
+            <strong>Рекомендация:</strong> установите на панели этикетовщика указанные частоты.
         </div>
     </div>
 
-    <div class="delta-panel">
-        
-        <div id="viscosityNotice" class="critical-alert" style="display: none; margin-bottom: 10px; background-color: rgba(245, 158, 11, 0.15); border: 1px solid #f59e0b; color: #fef08a; padding: 10px; border-radius: 6px; font-size: 13px; font-weight: 500; text-align: center;">
-            💡 РЕКОМЕНДАЦИЯ ПЛК: Вязкость продукта превышает 1000 ед. Допускается использование режима ВЕРХНЕГО НАЛИВА для снижения износа привода траверсы.
-        </div>
+    <div class="card">
+        <h2 class="card-title">Настройка угла ножа · инклинометр</h2>
 
-        <div class="delta-bezel">
-            
-            <div class="delta-header">
-                <div class="delta-logo">◤ DELTA</div>
-                <div class="arsanmak-logo">ARSANMAK</div>
-                <div class="delta-icons">
-                    <span class="icon-btn">⚙️</span>
-                    <span class="icon-btn btn-auto">AUTO</span>
-                </div>
-            </div>
-
-            <div class="delta-screen-wrapper">
-                <div class="delta-screen">
-                    
-                    <!-- ЛЕВАЯ ЧАСТЬ: Траверса сопел -->
-                    <div class="screen-left">
-                        <div class="nozzle-graphic-box">
-                            <div class="nozzle-icon">💧</div>
-                            <div class="nozzle-label">НАЗАД</div>
-                        </div>
-
-                        <div class="plc-row">
-                            <span class="plc-label">3.Скорость под.</span>
-                            <div class="plc-val-box" id="val_lift_speed_3">0</div>
-                        </div>
-                        <div class="plc-row">
-                            <span class="plc-label">3.Полож. сопел</span>
-                            <div class="plc-val-box" id="val_nozzle_pos_3">0</div>
-                        </div>
-                        <div class="plc-row">
-                            <span class="plc-label">2.Скорость под.</span>
-                            <div class="plc-val-box" id="val_lift_speed_2">0</div>
-                        </div>
-                        <div class="plc-row">
-                            <span class="plc-label">2.Полож. сопел</span>
-                            <div class="plc-val-box" id="val_nozzle_pos_2">0</div>
-                        </div>
-                        <div class="plc-row">
-                            <span class="plc-label">1.Скорость под.</span>
-                            <div class="plc-val-box" id="val_lift_speed_1">0</div>
-                        </div>
-                        <div class="plc-row">
-                            <span class="plc-label">1.Полож. сопел</span>
-                            <div class="plc-val-box" id="val_nozzle_pos_1">0</div>
-                        </div>
-                        
-                        <div class="plc-footer-btns">
-                            <div class="plc-btn btn-orange">ОТПРАВКА</div>
-                        </div>
-                    </div>
-
-                    <!-- ПРАВАЯ ЧАСТЬ: Скорости насоса, тайминги -->
-                    <div class="screen-right">
-                        <!-- 3-я скорость -->
-                        <div class="plc-row-right">
-                            <span class="plc-label-r">3.СКОРОСТЬ НАСОСА</span>
-                            <div class="plc-val-box-r" id="val_pump_speed_3">0.00</div>
-                        </div>
-                        <div class="plc-row-right">
-                            <span class="plc-label-r">3.ОБЪЕМ ПЕРЕХОДА</span>
-                            <div class="plc-val-box-r" id="val_trans_volume_3">0</div>
-                        </div>
-                        
-                        <!-- 2-я скорость -->
-                        <div class="plc-row-right">
-                            <span class="plc-label-r">2.СКОРОСТЬ НАСОСА</span>
-                            <div class="plc-val-box-r" id="val_pump_speed_2">0.00</div>
-                        </div>
-                        <div class="plc-row-right">
-                            <span class="plc-label-r">2.ОБЪЕМ ПЕРЕХОДА</span>
-                            <div class="plc-val-box-r" id="val_trans_volume_2">0</div>
-                        </div>
-                        
-                        <!-- 1-я скорость -->
-                        <div class="plc-row-right">
-                            <span class="plc-label-r">1.СКОРОСТЬ НАСОСА</span>
-                            <div class="plc-val-box-r" id="val_pump_speed_1">0.00</div>
-                        </div>
-                        
-                        <div class="plc-divider"></div>
-
-                        <!-- Положения сопел -->
-                        <div class="plc-row-right">
-                            <span class="plc-label-r">ВЕРХ. ПОЛОЖ. СОПЛА</span>
-                            <div class="plc-val-box-r" id="val_wait_point">0</div>
-                        </div>
-                        <div class="plc-row-right">
-                            <span class="plc-label-r">ВЕРХНИЙ НАЛИВ</span>
-                            <div class="plc-val-box-r" id="val_top_pour">0</div>
-                        </div>
-                        <div class="plc-row-right">
-                            <span class="plc-label-r">НИЖН. ПОЛОЖ. СОПЛА</span>
-                            <div class="plc-val-box-r" id="val_bottom_pos">0</div>
-                        </div>
-                        <div class="plc-row-right">
-                            <span class="plc-label-r">ОБЩИЙ ВЕС (мл.)</span>
-                            <div class="plc-val-box-r" id="val_total_weight">0</div>
-                        </div>
-
-                        <div class="plc-divider"></div>
-
-                        <!-- Тайминги шиберов -->
-                        <div class="plc-row-right">
-                            <span class="plc-label-r">ЗАКР. ШИБЕРА ВХОД</span>
-                            <div class="plc-val-box-r" id="val_shiber_close_in">0.0</div>
-                        </div>
-                        <div class="plc-row-right">
-                            <span class="plc-label-r">ОТКР. ШИБЕРА ВХОД</span>
-                            <div class="plc-val-box-r" id="val_shiber_open_in">0.0</div>
-                        </div>
-                        <div class="plc-row-right">
-                            <span class="plc-label-r">ЗАКР. ШИБЕРА ВЫХОД</span>
-                            <div class="plc-val-box-r" id="val_shiber_close_out">0.0</div>
-                        </div>
-                        <div class="plc-row-right">
-                            <span class="plc-label-r">СКОР. ОПУСК. ТРАВ.</span>
-                            <div class="plc-val-box-r" id="val_traverse_down_speed">0</div>
-                        </div>
-                        <div class="plc-row-right">
-                            <span class="plc-label-r">ОСН. СКОР. КОНВ.</span>
-                            <div class="plc-val-box-r" id="val_conveyor_main_speed">0.00</div>
-                        </div>
-                        <div class="plc-row-right">
-                            <span class="plc-label-r">НИЗК. СКОР. КОНВ.</span>
-                            <div class="plc-val-box-r" id="val_conveyor_low_speed">0.00</div>
-                        </div>
-
-                        <!-- Нижняя часть: рецепт -->
-                        <div class="plc-recipe-footer">
-                            <div class="recipe-nav">
-                                <span class="nav-arrow">▲</span>
-                                <span class="nav-num" id="val_line_num">1</span>
-                                <span class="nav-arrow">▼</span>
-                            </div>
-                            <div class="product-name-val" id="val_product_label">MILANA750</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="delta-settings-sub-screen">
-                <div class="settings-sub-title">⚙️ Настройки ПЛК (Экран задержек):</div>
-                <div class="settings-sub-row">
-                    <span>БЛОКИРОВКА КОНВЕЙЕРА:</span>
-                    <span class="status-badge" id="sub_conveyor_stop_badge">ЗАПУСТИТЬ</span>
-                </div>
-                <div class="settings-sub-row highlight-row">
-                    <span>ЗАДЕРЖКА ПОДЪЁМА (ПОГРУЖЕНИЕ):</span>
-                    <span class="sub-val text-cyan" id="sub_nozzle_lift_delay">0.0 сек</span>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- ============================================================
-     ВКЛАДКА: ЭТИКЕТКА
-     ============================================================ -->
-<div id="content-labeling" class="max-w-md mx-auto bg-zinc-950 text-gray-100 p-4 font-sans select-none hidden" style="position: relative; overflow: hidden; border-radius: 8px;">
-    
-    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-12deg); font-size: 52px; font-weight: 900; color: rgba(74, 222, 128, 0.08); text-shadow: 0 0 20px rgba(74, 222, 128, 0.2), 0 0 50px rgba(22, 163, 74, 0.1); letter-spacing: 2px; white-space: nowrap; pointer-events: none; z-index: 0; user-select: none;">
-        GRASS UNIVERSITY
-    </div>
-    
-    <div class="border-b border-zinc-800 pb-3 mb-4 flex justify-between items-center" style="position: relative; z-index: 1;">
-        <div>
-            <h1 class="text-xl font-bold tracking-wider text-amber-500">🏷 ARSANMAK + HERMA</h1>
-            <p class="text-xs text-zinc-500">Калибровка и переналадка аппликатора</p>
-        </div>
-        <div class="bg-amber-600 text-black font-black text-xs px-2 py-1 rounded">⚙ HERMA</div>
-    </div>
-    
-    <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4 space-y-4 shadow-xl" style="position: relative; z-index: 1;">
-        <h2 class="text-sm font-bold text-zinc-400 uppercase tracking-widest border-b border-zinc-800 pb-1">⚙ Параметры Наладки</h2>
-        
-        <div class="form-group-labeling">
-            <label class="block text-xs font-bold text-zinc-400 mb-1">Форма флакона:</label>
-            <select id="bottle-type" onchange="toggleConeInput()" class="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-sm text-amber-400 focus:outline-none">
-                <option value="flat">Прямой плоский (на 2 этикетки)</option>
-                <option value="cone">Конусный (на 2 этикетки)</option>
-                <option value="belly">Пузатый сферический (на 2 этикетки)</option>
-                <option value="round">Круглый (круговая обкатка)</option>
+        <div class="field">
+            <label for="knife-bottle-type">Тип флакона</label>
+            <select id="knife-bottle-type" onchange="updateKnifeInstructions()">
+                <option value="flat">Прямой плоский</option>
+                <option value="cone">Конусный</option>
+                <option value="belly">Пузатый сферический</option>
+                <option value="round">Круглый</option>
             </select>
         </div>
-        
-        <div class="form-group-labeling">
-            <label class="block text-xs font-bold text-zinc-400 mb-1">Материал этикетки:</label>
-            <select id="label-material" class="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-sm text-amber-400 focus:outline-none">
-                <option value="pp">Полипропилен (ПП / Пленка)</option>
-                <option value="paper">Бумага (Жесткая основа)</option>
-            </select>
-        </div>
-        
-        <div class="form-group-labeling">
-            <label class="block text-xs font-bold text-zinc-400 mb-1">Линейная скорость конвейера (м/с):</label>
-            <input id="conveyor-speed" type="number" step="0.01" value="0.20" class="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-sm text-center font-mono text-green-400 focus:outline-none">
-        </div>
-        
-        <div class="form-group-labeling">
-            <label class="block text-xs font-bold text-zinc-400 mb-1">Высота флакона (мм):</label>
-            <input id="bottle-height" type="number" step="1" value="200" min="50" max="500" class="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-sm text-center font-mono text-green-400 focus:outline-none">
+
+        <div class="field">
+            <label for="knife-wall-angle">Угол стенки флакона, °</label>
+            <input id="knife-wall-angle" type="number" step="0.1" value="0.0" min="0" max="45"
+                   oninput="updateKnifeInstructions()">
+            <p class="field-hint">Замерьте угол наклона стенки по центру</p>
         </div>
 
-        <div class="form-group-labeling">
-            <label class="block text-xs font-bold text-zinc-400 mb-1">Высота этикетки (мм):</label>
-            <input id="label-height" type="number" step="1" value="100" min="20" max="300" class="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-sm text-center font-mono text-green-400 focus:outline-none">
+        <div id="knife-rounding-block" class="field hidden">
+            <label for="knife-rounding-angle">Угол скругления, °</label>
+            <input id="knife-rounding-angle" type="number" step="0.1" value="0.0" min="0" max="30"
+                   oninput="updateKnifeInstructions()">
+            <p class="field-hint">Для флаконов со скруглением</p>
         </div>
-        
-        <div id="cone-angle-block" class="form-group-labeling hidden">
-            <label class="block text-xs font-bold text-amber-400 mb-1">Угол стенки флакона по лазерному угломеру (град°):</label>
-            <input id="cone-angle" type="number" step="0.1" value="4.5" class="w-full bg-zinc-950 border border-amber-800 rounded p-2 text-sm text-center font-mono text-amber-400 focus:outline-none">
+
+        <div class="btn-row">
+            <button onclick="checkKnifeAngles()" class="btn btn-primary">Проверить углы</button>
+            <button onclick="resetKnifeForm()" class="btn btn-secondary">Сбросить</button>
         </div>
-        
-        <div id="belly-params" class="form-group-labeling hidden">
-            <label class="block text-xs font-bold text-amber-400 mb-1">Кривизна пуза (0-1):</label>
-            <input id="belly-curvature" type="range" min="0" max="1" step="0.1" value="0.5" oninput="document.getElementById('belly-curvature-value').textContent = this.value" class="w-full">
-            <div class="flex justify-between text-xs text-zinc-500">
-                <span>Плоский</span>
-                <span id="belly-curvature-value">0.5</span>
-                <span>Сильно пузатый</span>
-            </div>
+
+        <h3 class="subsection-title">Пошаговая инструкция</h3>
+        <div id="knife-instructions" class="knife-instructions"></div>
+
+        <div id="knife-recommendation" class="callout callout-success hidden">
+            <strong>Рекомендация:</strong> <span id="knife-recommendation-text"></span>
         </div>
-        
-        <div id="round-bottle-params" class="form-group-labeling hidden">
-            <div class="border-t border-amber-800 pt-3 mt-2">
-                <p class="text-xs text-amber-400 font-bold mb-2">📐 Параметры обкаточного ремня:</p>
-                
-                <label class="block text-xs font-bold text-zinc-400 mb-1">Диаметр флакона (мм):</label>
-                <input id="bottle-diameter" type="number" step="1" value="75" min="20" max="200" class="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-sm text-center font-mono text-green-400 focus:outline-none">
-                
-                <label class="block text-xs font-bold text-zinc-400 mb-1 mt-3">Длина этикетки (мм):</label>
-                <input id="label-length" type="number" step="1" value="180" min="50" max="500" class="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-sm text-center font-mono text-green-400 focus:outline-none">
-                
-                <label class="block text-xs font-bold text-zinc-400 mb-1 mt-3">Диаметр приводного ролика (мм):</label>
-                <input id="roller-diameter" type="number" step="1" value="50" min="20" max="150" class="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-sm text-center font-mono text-green-400 focus:outline-none">
-            </div>
-        </div>
-        
-        <button onclick="generateTechCard()" class="w-full bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-black font-black py-3 rounded text-sm uppercase tracking-wider transition active:scale-95 cursor-pointer">
-            Сформировать Техкарту ПЛК
-        </button>
     </div>
 
-    <div id="tech-card-result" class="hidden mt-4 bg-zinc-900 border-2 border-dashed border-zinc-800 rounded-lg p-4 space-y-4" style="position: relative; z-index: 1;">
-        <div class="flex justify-between items-center border-b border-zinc-800 pb-2">
-            <span class="text-xs font-mono text-zinc-600">ID_RECIPE: AUTO_GEN</span>
-            <span class="text-xs font-bold text-green-400">● РАСЧЕТ ВЫПОЛНЕН</span>
-        </div>
-        <div class="space-y-2">
-            <h3 class="text-xs font-black text-amber-500 uppercase tracking-wider">🔧 1. Механическая переналадка Arsanmak</h3>
-            <ul id="mech-instructions" class="text-xs text-zinc-400 space-y-1.5 list-disc pl-4 font-mono"></ul>
-        </div>
-        <div class="space-y-2 pt-2 border-t border-zinc-900">
-            <h3 class="text-xs font-black text-amber-500 uppercase tracking-wider">⚙ 2. Настройка параметров Herma</h3>
-            <ul id="herma-instructions" class="text-xs text-zinc-400 space-y-1.5 list-disc pl-4 font-mono"></ul>
-        </div>
-    </div>
-</div>
+</section>
 
 <!-- ============================================================
      ВКЛАДКА: УКУПОР
      ============================================================ -->
-<div id="content-capping" class="max-w-md mx-auto bg-zinc-950 text-gray-100 p-4 font-sans select-none hidden" style="position: relative; overflow: hidden; border-radius: 8px;">
-    
-    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-12deg); font-size: 52px; font-weight: 900; color: rgba(74, 222, 128, 0.08); text-shadow: 0 0 20px rgba(74, 222, 128, 0.2), 0 0 50px rgba(22, 163, 74, 0.1); letter-spacing: 2px; white-space: nowrap; pointer-events: none; z-index: 0; user-select: none;">
-        GRASS UNIVERSITY
-    </div>
-    
-    <div class="border-b border-zinc-800 pb-3 mb-4 flex justify-between items-center" style="position: relative; z-index: 1;">
-        <div>
-            <h1 class="text-xl font-bold tracking-wider text-amber-500">🏺 ARSANMAK KV 30</h1>
-            <p class="text-xs text-zinc-500">3-шпиндельный укупор + добивалка</p>
-        </div>
-        <div class="bg-amber-600 text-black font-black text-xs px-2 py-1 rounded">⚙ УКУПОР</div>
-    </div>
-    
-    <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4 space-y-4 shadow-xl" style="position: relative; z-index: 1;">
-        <h2 class="text-sm font-bold text-zinc-400 uppercase tracking-widest border-b border-zinc-800 pb-1">⚙ Переналадка укупорного узла</h2>
-        
-        <div class="form-group-labeling">
-            <label class="block text-xs font-bold text-zinc-400 mb-1">Тип укупорки:</label>
-            <div class="flex gap-2">
-                <button id="cap-type-cap" onclick="selectCappingType('cap')" class="flex-1 py-2 rounded text-xs font-bold uppercase tracking-wider transition border-2 bg-zinc-800 border-zinc-600 text-zinc-400 cursor-pointer">
-                    🏷 Крышка
-                </button>
-                <button id="cap-type-trigger" onclick="selectCappingType('trigger')" class="flex-1 py-2 rounded text-xs font-bold uppercase tracking-wider transition border-2 bg-zinc-800 border-zinc-600 text-zinc-400 cursor-pointer">
-                    🔫 Триггер
-                </button>
-            </div>
-        </div>
-        
-        <div class="form-group-labeling">
-            <label class="block text-xs font-bold text-zinc-400 mb-1">Диаметр крышки/триггера (мм):</label>
-            <input id="cap-diameter" type="number" step="1" value="30" min="10" max="100" class="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-sm text-center font-mono text-green-400 focus:outline-none">
-        </div>
-        
-        <div class="form-group-labeling">
-            <label class="block text-xs font-bold text-zinc-400 mb-1">Высота флакона (мм):</label>
-            <input id="capping-bottle-height" type="number" step="1" value="200" min="50" max="500" class="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-sm text-center font-mono text-green-400 focus:outline-none">
-        </div>
-        
-        <div class="form-group-labeling">
-            <label class="block text-xs font-bold text-zinc-400 mb-1">Высота крышки/триггера (мм):</label>
-            <input id="cap-height" type="number" step="1" value="15" min="5" max="50" class="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-sm text-center font-mono text-green-400 focus:outline-none">
-        </div>
-        
-        <div class="form-group-labeling">
-            <label class="block text-xs font-bold text-zinc-400 mb-1">Скорость конвейера (тахометр, м/с):</label>
-            <input id="capping-conveyor-speed" type="number" step="0.01" value="0.20" min="0.01" max="1.00" class="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-sm text-center font-mono text-green-400 focus:outline-none">
-            <p class="text-xs text-zinc-500 mt-1">📏 Замерьте ручным тахометром скорость конвейерной ленты</p>
-        </div>
-        
-        <div class="form-group-labeling">
-            <label class="block text-xs font-bold text-zinc-400 mb-1">Материал укупорки:</label>
-            <select id="cap-material" class="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-sm text-amber-400 focus:outline-none">
-                <option value="pet">ПЭТ (пластик)</option>
-                <option value="metal">Металл</option>
-                <option value="cork">Пробка</option>
-                <option value="aluminum">Алюминий</option>
-            </select>
-        </div>
-        
-        <button onclick="calculateCappingParams()" class="w-full bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-black font-black py-3 rounded text-sm uppercase tracking-wider transition active:scale-95 cursor-pointer">
-            🚀 Рассчитать параметры настройки
-        </button>
+<section id="content-capping" class="tab-content">
+
+    <div class="page-head">
+        <h1>Укупорочный узел</h1>
+        <p>3-шпиндельный укупор + добивалка</p>
     </div>
 
-    <div id="capping-result" class="hidden mt-4 bg-zinc-900 border-2 border-dashed border-zinc-800 rounded-lg p-4 space-y-4" style="position: relative; z-index: 1;">
-        <div class="flex justify-between items-center border-b border-zinc-800 pb-2">
-            <span class="text-xs font-mono text-zinc-600">KV_30: RECIPE</span>
-            <span class="text-xs font-bold text-green-400">● РАСЧЕТ ВЫПОЛНЕН</span>
+    <div class="card">
+        <h2 class="card-title">Переналадка узла</h2>
+
+        <div class="field">
+            <label>Тип укупорки</label>
+            <div class="mode-toggle">
+                <button id="cap-type-cap" class="mode-btn mode-active" onclick="selectCappingType('cap')">🏷 Крышка</button>
+                <button id="cap-type-trigger" class="mode-btn" onclick="selectCappingType('trigger')">🔫 Триггер</button>
+            </div>
         </div>
-        
-        <div>
-            <h3 class="text-xs font-black text-amber-500 uppercase tracking-wider">📊 ПАРАМЕТРЫ ДЛЯ ПАНЕЛИ DELTA</h3>
-            <ul id="capping-params-list" class="text-xs text-zinc-400 space-y-1.5 font-mono mt-2"></ul>
+
+        <div class="field-row">
+            <div class="field">
+                <label for="cap-diameter">Диаметр, мм</label>
+                <input id="cap-diameter" type="number" step="1" value="30" min="10" max="100">
+            </div>
+            <div class="field">
+                <label for="cap-height">Высота укупорки, мм</label>
+                <input id="cap-height" type="number" step="1" value="15" min="5" max="50">
+            </div>
         </div>
-        
-        <div class="pt-2 border-t border-zinc-900">
-            <h3 class="text-xs font-black text-amber-500 uppercase tracking-wider">🔧 НАСТРОЙКА ПНЕВМАТИКИ</h3>
-            <ul id="capping-pneumatic-list" class="text-xs text-zinc-400 space-y-1.5 font-mono mt-2"></ul>
+
+        <div class="field-row">
+            <div class="field">
+                <label for="capping-bottle-height">Высота флакона, мм</label>
+                <input id="capping-bottle-height" type="number" step="1" value="200" min="50" max="500">
+            </div>
+            <div class="field">
+                <label for="capping-conveyor-speed">Скорость конв., м/с</label>
+                <input id="capping-conveyor-speed" type="number" step="0.01" value="0.20" min="0.01" max="1.00">
+            </div>
         </div>
-        
-        <div class="pt-2 border-t border-zinc-900">
-            <h3 class="text-xs font-black text-amber-500 uppercase tracking-wider">📐 НАСТРОЙКА МЕХАНИКИ</h3>
-            <ul id="capping-mechanical-list" class="text-xs text-zinc-400 space-y-1.5 font-mono mt-2"></ul>
+
+        <div class="field">
+            <label for="cap-material">Материал укупорки</label>
+            <select id="cap-material">
+                <option value="pet">Полипропилен (пластик)</option>
+            </select>
         </div>
-        
-        <div class="pt-2 border-t border-zinc-900">
-            <h3 class="text-xs font-black text-amber-500 uppercase tracking-wider">📈 ПРОИЗВОДИТЕЛЬНОСТЬ</h3>
-            <ul id="capping-performance-list" class="text-xs text-zinc-400 space-y-1.5 font-mono mt-2"></ul>
+
+        <p class="field-hint">Скорость конвейера замеряется ручным тахометром</p>
+
+        <button onclick="calculateCappingParams()" class="btn btn-primary btn-block">🚀 Рассчитать параметры</button>
+    </div>
+
+    <div id="capping-result" class="hidden">
+        <div class="card">
+            <div class="result-head">
+                <span class="result-code">RECIPE: CAP_30</span>
+                <span class="badge badge-stop-disabled">● РАСЧЁТ ВЫПОЛНЕН</span>
+            </div>
+
+            <h3 class="subsection-title">Параметры для панели</h3>
+            <ul id="capping-params-list" class="param-list"></ul>
+
+            <h3 class="subsection-title">Настройка пневматики</h3>
+            <ul id="capping-pneumatic-list" class="param-list"></ul>
+
+            <h3 class="subsection-title">Настройка механики</h3>
+            <ul id="capping-mechanical-list" class="param-list"></ul>
+
+            <h3 class="subsection-title">Производительность</h3>
+            <ul id="capping-performance-list" class="param-list"></ul>
+
+            <h3 class="subsection-title">Пошаговая инструкция</h3>
+            <ul id="capping-steps-list" class="param-list"></ul>
+
+            <div class="btn-row">
+                <button onclick="copyCappingParams(event)" class="btn btn-primary">📋 Копировать</button>
+                <button onclick="resetCappingForm()" class="btn btn-secondary">🔄 Сбросить</button>
+            </div>
         </div>
-        
-        <div class="pt-2 border-t border-zinc-900">
-            <h3 class="text-xs font-black text-amber-500 uppercase tracking-wider">📋 ПОШАГОВАЯ ИНСТРУКЦИЯ</h3>
-            <ul id="capping-steps-list" class="text-xs text-zinc-300 space-y-2 font-mono mt-2"></ul>
+    </div>
+
+</section>
+
+<!-- ============================================================
+     ВКЛАДКА: СПРАВКА
+     ============================================================ -->
+<section id="content-help" class="tab-content">
+
+    <div class="page-head">
+        <h1>Справка</h1>
+        <p>Краткое руководство для наладчика и инженера</p>
+    </div>
+
+    <div class="help-toc">
+        <a href="#help-about">О приложении</a>
+        <a href="#help-filling">Налив</a>
+        <a href="#help-labeler">Этикетовщик</a>
+        <a href="#help-capping">Укупор</a>
+        <a href="#help-eng">Инженерное меню</a>
+        <a href="#help-journal">Журнал</a>
+        <a href="#help-faq">Частые вопросы</a>
+    </div>
+
+    <div class="card" id="help-about">
+        <h2 class="card-title">О приложении</h2>
+        <p class="help-p">
+            <b>Mobile Assistant 2.0</b> — калькулятор и справочник для наладки линии розлива.
+            Приложение выдаёт <em>рекомендации</em>, а не принудительные уставки: финальную
+            корректировку всегда делает наладчик.
+        </p>
+        <p class="help-p">
+            Все расчёты выполняются на устройстве. Никаких данных в интернет не уходит.
+            Калибровки и журнал хранятся в памяти браузера.
+        </p>
+    </div>
+
+    <div class="card" id="help-filling">
+        <h2 class="card-title">💧 Вкладка «Налив»</h2>
+        <h3 class="subsection-title">Ввод</h3>
+        <ul class="help-list">
+            <li><b>Технологическая линия</b> — 1.1 … 1.6. От неё зависят диапазоны скоростей и логика расчёта.</li>
+            <li><b>Высота флакона</b> — по рулетке, в миллиметрах.</li>
+            <li><b>Объём заполнения</b> и <b>целевой вес</b> — связаны через плотность. Вводите то, что указано в карте розлива, второе подтянется автоматически.</li>
+            <li><b>Плотность продукта</b> — 0.75–1.30 г/мл. Вода 1.00, мыло 1.02–1.05, гели 0.98–1.10.</li>
+            <li><b>Вязкость</b> — условные единицы. 0 — вода, 1450–1850 — мыло.</li>
+        </ul>
+        <h3 class="subsection-title">Как читать экран ПЛК</h3>
+        <ul class="help-list">
+            <li>Левая колонка — скорости подъёма сопел и их положения (1/2/3 — три ступени).</li>
+            <li>Правая колонка — скорости насоса, объёмы перехода, тайминги шиберов, скорости конвейера.</li>
+            <li><b>Целевой вес</b> — масса, а не объём. Совпадает с картой розлива.</li>
+            <li><b>Задержка подъёма</b> — время погружения сопла. Ниже 0.4 с — критический режим.</li>
+        </ul>
+        <div class="callout callout-warning">
+            <b>Важно:</b> если рекомендуемая задержка меньше 0.4 с — не запускайте линию.
+            Это ведёт к износу привода траверсы.
         </div>
-        
-        <div class="pt-2 border-t border-zinc-900 flex gap-2">
-            <button onclick="copyCappingParams()" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 rounded text-xs uppercase tracking-wider transition cursor-pointer">
-                📋 Копировать параметры
-            </button>
-            <button onclick="resetCappingForm()" class="flex-1 bg-zinc-700 hover:bg-zinc-600 text-white font-bold py-2 rounded text-xs uppercase tracking-wider transition cursor-pointer">
-                🔄 Сбросить
-            </button>
+    </div>
+
+    <div class="card" id="help-labeler">
+        <h2 class="card-title">🏷 Вкладка «Этикетовщик»</h2>
+        <h3 class="subsection-title">Калькулятор частот</h3>
+        <ul class="help-list">
+            <li>Введите <b>целевую скорость конвейера</b> (м/мин) — приложение покажет нужные Гц на трёх приводах.</li>
+            <li>Либо переключитесь на <b>Hz конвейера</b> и введите частоту — покажет эквивалентную скорость и Гц остальных приводов.</li>
+            <li>Если линия не откалибрована — появится предупреждение, расчёт пойдёт по значениям линии 1.1.</li>
+        </ul>
+        <h3 class="subsection-title">Настройка угла ножа</h3>
+        <ul class="help-list">
+            <li>Выберите тип флакона. Для пузатых и круглых появится поле угла скругления.</li>
+            <li>Занесите замеры углов с инклинометра — приложение сгенерирует пошаговую инструкцию.</li>
+            <li>Порядок калибровки: сначала <b>поперечная</b>, потом <b>продольная</b>.</li>
+        </ul>
+    </div>
+
+    <div class="card" id="help-capping">
+        <h2 class="card-title">🏺 Вкладка «Укупор»</h2>
+        <ul class="help-list">
+            <li>Тип укупорки: крышка или триггер. Для триггера добивалка не используется.</li>
+            <li>Укажите диаметр и высоту укупорки, высоту флакона, скорость конвейера.</li>
+            <li>Нажмите «Рассчитать» — получите параметры для панели, пневматики, механики и производительность.</li>
+            <li>Кнопка «Копировать» отправляет параметры в буфер — можно вставить в журнал или мессенджер.</li>
+        </ul>
+    </div>
+
+    <div class="card" id="help-eng">
+        <h2 class="card-title">🔧 Инженерное меню</h2>
+        <p class="help-p">
+            Вход — кнопка <b>⚙</b> в правом нижнем углу. PIN по умолчанию <b>2801</b>.
+            PIN спрашивается один раз за сессию браузера; после перезагрузки — снова.
+        </p>
+        <h3 class="subsection-title">Калибровка этикетовщика</h3>
+        <ul class="help-list">
+            <li>Для каждой линии задайте <b>3–5 точек</b>: частота на панели (Гц) → измеренная скорость (м/мин).</li>
+            <li>Приложение строит линейную регрессию и показывает <b>R²</b>. Если R² < 0.98 — перепроверьте замеры.</li>
+            <li><b>Максимум Гц</b> для каждого привода задаётся вручную — у разных линий он разный.</li>
+            <li>После заполнения — «Сохранить». Коэффициенты работают только на этом устройстве.</li>
+        </ul>
+        <h3 class="subsection-title">Экспорт и импорт</h3>
+        <ul class="help-list">
+            <li><b>Экспорт ▾</b> → «все линии» или «текущая линия» — выгружает JSON.</li>
+            <li><b>Импорт</b> — принимает только линии 1.1 … 1.6. Неизвестные ключи игнорируются с уведомлением.</li>
+        </ul>
+        <h3 class="subsection-title">Смена PIN</h3>
+        <ul class="help-list">
+            <li>Внизу меню — «Сменить PIN». Нужно ввести текущий и дважды новый (4–6 цифр).</li>
+            <li>PIN хранится в памяти браузера. Если забыли — очистите данные сайта (сбросит всё, включая калибровку).</li>
+        </ul>
+    </div>
+
+    <div class="card" id="help-journal">
+        <h2 class="card-title">🗒 Журнал наладок</h2>
+        <p class="help-p">
+            Вход — кнопка <b>🗒</b> слева от шестерёнки в правом нижнем углу.
+            Журнал сохраняет историю наладок: параметры и расчётные значения.
+        </p>
+        <ul class="help-list">
+            <li><b>Сохранить текущий расчёт</b> — добавить запись по параметрам с вкладки «Налив».</li>
+            <li>Также сохранить можно кнопкой «📌 Сохранить в журнал» прямо на вкладке «Налив».</li>
+            <li><b>Загрузить в форму</b> — вернуть параметры записи на вкладку «Налив».</li>
+            <li><b>Экспорт</b> — выгрузить журнал в JSON.</li>
+            <li><b>Очистить</b> — удалить все записи (с подтверждением).</li>
+        </ul>
+    </div>
+
+    <div class="card" id="help-faq">
+        <h2 class="card-title">❓ Частые вопросы</h2>
+
+        <details class="faq-item">
+            <summary>Почему рекомендуемые значения не совпадают с тем, что реально работает?</summary>
+            <p>Приложение даёт <b>рекомендацию</b> по математической модели. Реальное поведение зависит от состояния механики, износа насоса, температуры продукта. Если ваше значение устойчиво отличается — используйте его и по возможности сообщите инженеру для калибровки.</p>
+        </details>
+
+        <details class="faq-item">
+            <summary>Что делать, если приложение показывает «линия не откалибрована»?</summary>
+            <p>Обратиться к инженеру. Пока линия не откалибрована, расчёт идёт по коэффициентам линии 1.1, что может дать погрешность.</p>
+        </details>
+
+        <details class="faq-item">
+            <summary>Можно ли использовать на нескольких устройствах?</summary>
+            <p>Да, но калибровка и журнал хранятся локально. Чтобы перенести — экспортируйте JSON на одном устройстве и импортируйте на другом.</p>
+        </details>
+
+        <details class="faq-item">
+            <summary>Пропали коэффициенты после обновления браузера или очистки истории</summary>
+            <p>localStorage очищается вместе с данными сайта. Если у вас был экспорт — восстановите импортом.</p>
+        </details>
+
+        <details class="faq-item">
+            <summary>Как считается вес?</summary>
+            <p>M = V × ρ, где V — объём заполнения, ρ — плотность. Линия флоуметрическая и считает объём, а карта розлива задаёт вес — приложение переводит одно в другое.</p>
+        </details>
+
+        <details class="faq-item">
+            <summary>Что значит «режим верхнего налива»?</summary>
+            <p>При вязкости выше 1000 ед. приложение может рекомендовать верхний налив — это снижает износ привода траверсы.</p>
+        </details>
+    </div>
+
+</section>
+
+</main>
+
+<!-- ============================================================
+     ПЛАВАЮЩИЕ КНОПКИ
+     ============================================================ -->
+<div class="float-actions">
+    <button id="journal-btn" class="float-btn" onclick="openJournal()" title="Журнал наладок">🗒</button>
+    <button id="eng-gear-btn" class="float-btn" onclick="openEngMenu()" title="Инженерное меню">⚙</button>
+</div>
+
+<!-- ============================================================
+     МОДАЛКА: ЖУРНАЛ НАЛАДОК
+     ============================================================ -->
+<div id="journal-overlay" class="modal-overlay hidden">
+    <div class="modal">
+        <header class="modal-head">
+            <h2>🗒 Журнал наладок</h2>
+            <button class="modal-close" onclick="closeJournal()">✕</button>
+        </header>
+        <div class="modal-body">
+            <button onclick="saveCurrentToJournal()" class="btn btn-primary btn-block">📌 Сохранить текущий расчёт</button>
+
+            <div id="journal-empty" class="journal-empty hidden">
+                Журнал пуст. Заполните параметры на вкладке «Налив» и нажмите «Сохранить».
+            </div>
+
+            <div id="journal-list" class="journal-list"></div>
+
+            <div class="modal-actions-grid">
+                <button onclick="exportJournal()" class="btn btn-ghost">📤 Экспорт</button>
+                <button onclick="clearJournal()" class="btn btn-ghost">🗑 Очистить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================
+     МОДАЛКА: СМЕНА PIN
+     ============================================================ -->
+<div id="eng-pin-change-overlay" class="modal-overlay hidden">
+    <div class="modal modal-sm">
+        <header class="modal-head">
+            <h2>🔑 Смена PIN</h2>
+            <button class="modal-close" onclick="closePinChange()">✕</button>
+        </header>
+        <div class="modal-body">
+            <div class="field">
+                <label for="pin-old">Текущий PIN</label>
+                <input id="pin-old" type="password" inputmode="numeric" maxlength="6" class="pin-input">
+            </div>
+            <div class="field">
+                <label for="pin-new">Новый PIN (4–6 цифр)</label>
+                <input id="pin-new" type="password" inputmode="numeric" maxlength="6" class="pin-input">
+            </div>
+            <div class="field">
+                <label for="pin-new2">Повторите новый PIN</label>
+                <input id="pin-new2" type="password" inputmode="numeric" maxlength="6" class="pin-input">
+            </div>
+            <div id="pin-change-error" class="alert alert-danger hidden"></div>
+            <button onclick="submitPinChange()" class="btn btn-primary btn-block">Сохранить</button>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================
+     МОДАЛКА: ПОДТВЕРЖДЕНИЕ
+     ============================================================ -->
+<div id="eng-confirm-overlay" class="modal-overlay hidden">
+    <div class="modal modal-sm">
+        <header class="modal-head">
+            <h2>Несохранённые изменения</h2>
+        </header>
+        <div class="modal-body">
+            <p id="eng-confirm-text" class="modal-text"></p>
+            <div class="modal-actions">
+                <button id="eng-confirm-save" class="btn btn-primary btn-block">💾 Сохранить и продолжить</button>
+                <button id="eng-confirm-discard" class="btn btn-secondary btn-block">🚪 Продолжить без сохранения</button>
+                <button id="eng-confirm-cancel" class="btn btn-ghost btn-block">↩ Отмена</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================
+     МОДАЛКА: ИНЖЕНЕРНОЕ МЕНЮ
+     ============================================================ -->
+<div id="eng-menu-overlay" class="modal-overlay hidden">
+    <div class="modal">
+        <header class="modal-head">
+            <h2>🔧 Инженерное меню</h2>
+            <button class="modal-close" onclick="closeEngMenu()">✕</button>
+        </header>
+        <div class="modal-body">
+
+            <div id="eng-pin-block">
+                <p class="modal-text">Введите PIN для доступа к калибровке.</p>
+                <input id="eng-pin-input" type="password" inputmode="numeric" maxlength="6"
+                       placeholder="••••" class="pin-input"
+                       onkeydown="if(event.key==='Enter') checkEngPin()">
+                <div id="eng-pin-error" class="alert alert-danger hidden">Неверный PIN</div>
+                <button onclick="checkEngPin()" class="btn btn-primary btn-block">Войти</button>
+            </div>
+
+            <div id="eng-content" class="hidden">
+                <p class="modal-text">
+                    Задайте калибровочные точки: <b>частота на панели (Гц)</b> → <b>измеренная скорость (м/мин)</b>.
+                    Минимум 2 точки, рекомендуется 3–5 в рабочем диапазоне.
+                </p>
+
+                <div class="field">
+                    <label for="eng-line-select">Линия</label>
+                    <select id="eng-line-select" onchange="switchEngLine()"></select>
+                    <div id="eng-calib-status" class="modal-status"></div>
+                </div>
+
+                <div class="eng-card">
+                    <h3>Конвейер</h3>
+                    <table class="eng-table">
+                        <thead><tr><th>Гц</th><th>Скорость, м/мин</th><th></th></tr></thead>
+                        <tbody id="eng-tbody-conveyor"></tbody>
+                    </table>
+                    <button class="btn btn-ghost btn-block" onclick="addEngRow('conveyor')">+ Добавить точку</button>
+                    <div class="eng-fit" id="eng-fit-conveyor">—</div>
+                    <div class="eng-maxhz-row">
+                        <label for="eng-conv-maxhz">Максимум Гц</label>
+                        <input id="eng-conv-maxhz" type="number" step="1" min="1" max="200"
+                               oninput="onEngMaxHz('conveyor', this.value)">
+                        <span class="eng-maxhz-hint" id="eng-conv-maxspeed">—</span>
+                    </div>
+                </div>
+
+                <div class="eng-card">
+                    <h3>Прижимная лента</h3>
+                    <table class="eng-table">
+                        <thead><tr><th>Гц</th><th>Скорость, м/мин</th><th></th></tr></thead>
+                        <tbody id="eng-tbody-press"></tbody>
+                    </table>
+                    <button class="btn btn-ghost btn-block" onclick="addEngRow('press')">+ Добавить точку</button>
+                    <div class="eng-fit" id="eng-fit-press">—</div>
+                    <div class="eng-maxhz-row">
+                        <label for="eng-press-maxhz">Максимум Гц</label>
+                        <input id="eng-press-maxhz" type="number" step="1" min="1" max="200"
+                               oninput="onEngMaxHz('press', this.value)">
+                        <span class="eng-maxhz-hint" id="eng-press-maxspeed">—</span>
+                    </div>
+                </div>
+
+                <div class="eng-card">
+                    <h3>Обкатчик</h3>
+                    <table class="eng-table">
+                        <thead><tr><th>Гц</th><th>Скорость, м/мин</th><th></th></tr></thead>
+                        <tbody id="eng-tbody-roller"></tbody>
+                    </table>
+                    <button class="btn btn-ghost btn-block" onclick="addEngRow('roller')">+ Добавить точку</button>
+                    <div class="eng-fit" id="eng-fit-roller">—</div>
+                    <div class="eng-maxhz-row">
+                        <label for="eng-roller-maxhz">Максимум Гц</label>
+                        <input id="eng-roller-maxhz" type="number" step="1" min="1" max="200"
+                               oninput="onEngMaxHz('roller', this.value)">
+                        <span class="eng-maxhz-hint" id="eng-roller-maxspeed">—</span>
+                    </div>
+                </div>
+
+                <div class="modal-actions-grid">
+                    <button onclick="saveEngCoeffs()" class="btn btn-primary">💾 Сохранить</button>
+                    <button onclick="resetEngCoeffs()" class="btn btn-secondary">🔄 К заводским</button>
+                    <button onclick="importEngCoeffs()" class="btn btn-ghost">📥 Импорт</button>
+                    <div class="dropdown">
+                        <button class="btn btn-ghost btn-block" onclick="toggleExportMenu(event)">📤 Экспорт ▾</button>
+                        <div id="export-dropdown" class="dropdown-menu hidden">
+                            <button onclick="exportEngAll(); closeExportMenu()">Экспорт всех линий</button>
+                            <button onclick="exportEngCurrent(); closeExportMenu()">Экспорт текущей линии</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer-link">
+                    <button onclick="changeEngPin()" class="btn btn-link">Сменить PIN</button>
+                </div>
+            </div>
+
         </div>
     </div>
 </div>
