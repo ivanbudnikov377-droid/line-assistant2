@@ -3,6 +3,36 @@
 // ============================================================
 
 // ============================================================
+// ПРАВИЛА СООТВЕТСТВИЯ ЛИНИИ И ОБЪЁМА ФЛАКОНА
+// ============================================================
+const LINE_VOLUME_RULES = {
+    LINE_1_1: { min: 50,   max: 6000, label: 'без ограничений' },
+    LINE_1_2: { min: 50,   max: 6000, label: 'без ограничений' },
+    LINE_1_3: { min: 50,   max: 999,  label: 'до 1 л (не включая 1 л)' },
+    LINE_1_4: { min: 4500, max: 5500, label: 'только 5 л канистры' },
+    LINE_1_5: { min: 50,   max: 1000, label: 'до 1 л включительно' },
+    LINE_1_6: { allowed: [600, 1000, 5000], label: '0.6 л, 1 л, 5 л' }
+};
+
+function isVolumeAllowedForLine(line, volume) {
+    const rule = LINE_VOLUME_RULES[line];
+    if (!rule) return true;
+    if (rule.allowed) return rule.allowed.some(v => Math.abs(v - volume) <= 50);
+    return volume >= rule.min && volume <= rule.max;
+}
+
+function getLineVolumeLabel(line) {
+    const rule = LINE_VOLUME_RULES[line];
+    return rule ? rule.label : '';
+}
+
+function getLineVolumeWarning(line, volume) {
+    if (isVolumeAllowedForLine(line, volume)) return '';
+    const label = getLineVolumeLabel(line);
+    return `⚠️ ${line.replace('LINE_', 'Линия ')} работает только с форматом: ${label}. Объём ${volume} мл — несоответствие.`;
+}
+
+// ============================================================
 // 1. ОСНОВНОЙ РАСЧЁТ ДЛЯ НАЛИВА
 // ============================================================
 
@@ -25,8 +55,15 @@ function runUniversalCalculation() {
 
     if (bottleHeight <= 0 || bottleVol <= 0 || targetWeight <= 0 || visc < 0 || density <= 0) return;
 
-    const vol = targetWeight / density;
+    // Проверка соответствия линии и объёма
+    const volumeWarnEl = document.getElementById('lineVolumeWarning');
+    if (volumeWarnEl) {
+        const warning = getLineVolumeWarning(line, bottleVol);
+        if (warning) { volumeWarnEl.textContent = warning; volumeWarnEl.classList.remove('hidden'); }
+        else volumeWarnEl.classList.add('hidden');
+    }
 
+    const vol = targetWeight / density;
     const hintEl = document.getElementById('fillVolumeHintValue');
     if (hintEl) hintEl.textContent = vol.toFixed(1) + ' мл';
 
@@ -39,7 +76,6 @@ function runUniversalCalculation() {
 
     const isWideNozzle = (line === "LINE_1_4" || line === "LINE_1_6");
     const nozzleAreaFactor = isWideNozzle ? 1.0 : 1.89;
-
     const vF = Math.min(visc / 8000, 1.0);
 
     let speed1 = 40 + 5 * vF;
@@ -51,11 +87,10 @@ function runUniversalCalculation() {
         speed2 = 45 + 25 * vF;
         speed3 = 20 + 25 * vF;
     }
-
     if (visc < 800) {
         const liquidDamping = 0.85 + (0.15 * (visc / 800));
-        speed1 = speed1 * liquidDamping;
-        speed3 = speed3 * liquidDamping;
+        speed1 *= liquidDamping;
+        speed3 *= liquidDamping;
     }
 
     let k_t2 = 0.20, k_t3 = 0.85;
@@ -91,8 +126,7 @@ function runUniversalCalculation() {
             np1 = 30; np2 = 80; np3 = 192;
             conv_m = 80.00; conv_l = 25.00;
             sh_in_c = 0.0; sh_in_o = 1.0; sh_out_c = 0.0;
-            tr_down = 100;
-            delay = 2.5;
+            tr_down = 100; delay = 2.5;
         } else if (vol >= 900 && vol <= 1100 && visc === 0) {
             speed1 = 30.00; speed2 = 55.00; speed3 = 18.00;
             k_t2 = 0.245; k_t3 = 0.888;
@@ -105,142 +139,94 @@ function runUniversalCalculation() {
             np3 = Math.round(bottleHeight * 0.80);
             conv_m = 60.00; conv_l = 0.00;
             sh_in_c = 0.0; sh_in_o = 0.5; sh_out_c = 0.2;
-            tr_down = 100;
-            delay = 1.0;
+            tr_down = 100; delay = 1.0;
         } else {
             speed1 = 40 + 5 * vF;
             speed2 = 70 + 5 * vF;
             speed3 = 40 + 5 * vF;
             if (visc < 800) {
                 const liquidDamping = 0.85 + (0.15 * (visc / 800));
-                speed1 = speed1 * liquidDamping;
-                speed3 = speed3 * liquidDamping;
+                speed1 *= liquidDamping; speed3 *= liquidDamping;
             }
-            speed1 = Math.min(speed1, 100.00);
-            speed2 = Math.min(speed2, 100.00);
-            speed3 = Math.min(speed3, 100.00);
-
-            const heightFactor = bottleHeight / 230;
-            const volumeFactor = 1000 / vol;
-            const viscosityFactor = 1 + (1 - vF) * 0.5;
-            const baseLiftSpeed = Math.round(30 * heightFactor * volumeFactor * viscosityFactor);
-
-            ls1 = Math.max(Math.round(baseLiftSpeed * 0.6), 10);
-            ls2 = Math.max(Math.round(baseLiftSpeed * 1.0), 10);
-            ls3 = Math.max(Math.round(baseLiftSpeed * 0.6), 10);
-            ls1 = Math.min(ls1, 100); ls2 = Math.min(ls2, 100); ls3 = Math.min(ls3, 100);
-
+            speed1 = Math.min(speed1, 100); speed2 = Math.min(speed2, 100); speed3 = Math.min(speed3, 100);
+            const baseLiftSpeed = Math.round(30 * (bottleHeight / 230) * (1000 / vol) * (1 + (1 - vF) * 0.5));
+            ls1 = Math.min(Math.max(Math.round(baseLiftSpeed * 0.6), 10), 100);
+            ls2 = Math.min(Math.max(Math.round(baseLiftSpeed * 1.0), 10), 100);
+            ls3 = Math.min(Math.max(Math.round(baseLiftSpeed * 0.6), 10), 100);
             bp = 40;
             tp = Math.round(bottleHeight - 30);
             wp = Math.round(bottleHeight + 100);
             np1 = 40;
             np2 = Math.round(bottleHeight * 0.20);
             np3 = Math.round(bottleHeight * 0.80);
-
             conv_m = 70.00; conv_l = 15.00;
-            sh_in_c = 0.5; sh_in_o = 0.0; sh_out_c = 0.0;
-
-            let calculatedDelay = (vol / 5000) * (80 / speed1) * (1.0 - vF);
-            delay = parseFloat(Math.max(calculatedDelay, 1.0).toFixed(1));
+            sh_in_c = 0.5; sh_in_o = 0.5; sh_out_c = 0.0;
+            delay = parseFloat(Math.max((vol / 5000) * (80 / speed1) * (1.0 - vF), 1.0).toFixed(1));
             tr_down = 100;
         }
     } else if (vol <= 1500) {
-        speed1 = speed1 * 0.92;
-        speed2 = speed2 * 0.92;
-        speed3 = speed3 * 0.92;
-
-        const baseMultiplier = 43.5;
-        const kinematicsFactor = (speed2 / bottleHeight) * baseMultiplier * nozzleAreaFactor;
-        let baseLiftSpeed = Math.round(kinematicsFactor * (1.0 + 0.35 * vF));
-        baseLiftSpeed = Math.max(baseLiftSpeed, 15);
-
+        speed1 *= 0.92; speed2 *= 0.92; speed3 *= 0.92;
+        const kinematicsFactor = (speed2 / bottleHeight) * 43.5 * nozzleAreaFactor;
+        let baseLiftSpeed = Math.max(Math.round(kinematicsFactor * (1.0 + 0.35 * vF)), 15);
         ls2 = baseLiftSpeed;
         ls1 = Math.max(Math.round(ls2 * 0.9), 15);
         ls3 = Math.max(Math.round(ls2 * 0.85), 15);
-
         bp = 40;
         tp = Math.round(bottleHeight - 30);
         wp = Math.round(bottleHeight + 100);
         np1 = 40;
         np2 = Math.round(bottleHeight * 0.20);
         np3 = Math.round(bottleHeight * 0.80);
-
         conv_m = 60.00; conv_l = 0.00;
         sh_in_c = 0.0; sh_in_o = 0.5; sh_out_c = 0.2;
-
-        let calculatedDelay = (vol / 5000) * (80 / speed1) * (1.0 - vF);
-        delay = parseFloat(Math.max(calculatedDelay, 1.0).toFixed(1));
+        delay = parseFloat(Math.max((vol / 5000) * (80 / speed1) * (1.0 - vF), 1.0).toFixed(1));
     } else {
-        let baseMultiplier;
-        if (vol > 3000) baseMultiplier = 65.0;
-        else baseMultiplier = 51.5;
-
+        const baseMultiplier = vol > 3000 ? 65.0 : 51.5;
         const kinematicsFactor = (speed2 / bottleHeight) * baseMultiplier * nozzleAreaFactor;
-        let baseLiftSpeed = Math.round(kinematicsFactor * (1.0 + 0.35 * vF));
-        baseLiftSpeed = Math.max(baseLiftSpeed, 15);
-
+        let baseLiftSpeed = Math.max(Math.round(kinematicsFactor * (1.0 + 0.35 * vF)), 15);
         ls2 = baseLiftSpeed;
         ls1 = Math.max(Math.round(ls2 * 0.9), 15);
         ls3 = Math.max(Math.round(ls2 * 0.85), 15);
-
         bp = 40;
         tp = Math.round(bottleHeight - 30);
         wp = Math.round(bottleHeight + 100);
         np1 = 40;
         np2 = Math.round(bottleHeight * 0.20);
         np3 = Math.round(bottleHeight * 0.80);
-
         conv_m = 70.00; conv_l = 15.00;
-        sh_in_c = 0.5; sh_in_o = 0.0; sh_out_c = 0.0;
-
-        let calculatedDelay = (vol / 5000) * (80 / speed1) * (1.0 - vF);
-        delay = parseFloat(Math.max(calculatedDelay, 1.0).toFixed(1));
+        sh_in_c = 0.5; sh_in_o = 0.5; sh_out_c = 0.0;
+        delay = parseFloat(Math.max((vol / 5000) * (80 / speed1) * (1.0 - vF), 1.0).toFixed(1));
     }
 
     speed1 = Math.min(speed1, 100.00);
     speed2 = Math.min(speed2, 100.00);
     speed3 = Math.min(speed3, 100.00);
-    ls1 = Math.min(ls1, 100);
-    ls2 = Math.min(ls2, 100);
-    ls3 = Math.min(ls3, 100);
+    ls1 = Math.min(ls1, 100); ls2 = Math.min(ls2, 100); ls3 = Math.min(ls3, 100);
 
     // Минимально безопасная задержка подъёма по вязкости
-    const delayMinSafe = visc < 800
-        ? 3.0 - (visc / 800) * 1.5
-        : 1.5;
-    if (delay < delayMinSafe) {
-        delay = parseFloat(delayMinSafe.toFixed(1));
-    }
+    const delayMinSafe = visc < 800 ? 3.0 - (visc / 800) * 1.5 : 1.5;
+    if (delay < delayMinSafe) delay = parseFloat(delayMinSafe.toFixed(1));
 
-    let t2 = Math.round(vol * k_t2);
-    let t3 = Math.round(vol * k_t3);
-
+    const t2 = Math.round(vol * k_t2);
+    const t3 = Math.round(vol * k_t3);
     const prodLabel = "РЕЦЕПТ № " + lineNum;
     const stopConv = (vol <= 1000);
 
     let pumpSpeed2Display;
     if (visc > 1000) {
-        const topPourSpeed = speed2 * 0.88;
-        pumpSpeed2Display = "(ВЕРХН.) " + topPourSpeed.toFixed(2) + "  (ДОН.) " + speed2.toFixed(2);
+        pumpSpeed2Display = "(ВЕРХН.) " + (speed2 * 0.88).toFixed(2) + "  (ДОН.) " + speed2.toFixed(2);
     } else {
         pumpSpeed2Display = speed2.toFixed(2);
     }
 
     const fields = {
-        'val_lift_speed_3': ls3,
-        'val_nozzle_pos_3': np3,
-        'val_lift_speed_2': ls2,
-        'val_nozzle_pos_2': np2,
-        'val_lift_speed_1': ls1,
-        'val_nozzle_pos_1': np1,
-        'val_pump_speed_3': speed3.toFixed(2),
-        'val_trans_volume_3': t3,
-        'val_pump_speed_2': pumpSpeed2Display,
-        'val_trans_volume_2': t2,
+        'val_lift_speed_3': ls3, 'val_nozzle_pos_3': np3,
+        'val_lift_speed_2': ls2, 'val_nozzle_pos_2': np2,
+        'val_lift_speed_1': ls1, 'val_nozzle_pos_1': np1,
+        'val_pump_speed_3': speed3.toFixed(2), 'val_trans_volume_3': t3,
+        'val_pump_speed_2': pumpSpeed2Display, 'val_trans_volume_2': t2,
         'val_pump_speed_1': speed1.toFixed(2),
-        'val_wait_point': wp,
-        'val_top_pour': tp,
-        'val_bottom_pos': bp,
+        'val_wait_point': wp, 'val_top_pour': tp, 'val_bottom_pos': bp,
         'val_fill_volume': vol.toFixed(1),
         'val_shiber_close_in': sh_in_c.toFixed(1),
         'val_shiber_open_in': sh_in_o.toFixed(1),
@@ -265,9 +251,7 @@ function runUniversalCalculation() {
     }
 
     const noticeEl = document.getElementById('viscosityNotice');
-    if (noticeEl) {
-        noticeEl.style.display = visc > 1000 ? 'block' : 'none';
-    }
+    if (noticeEl) noticeEl.style.display = visc > 1000 ? 'block' : 'none';
 }
 
 // ============================================================
@@ -298,22 +282,19 @@ const ENG_PIN_KEY     = 'line-assistant-eng-pin';
 const DEFAULT_PIN     = '2801';
 const KNOWN_LINES     = ['LINE_1_1','LINE_1_2','LINE_1_3','LINE_1_4','LINE_1_5','LINE_1_6'];
 
-let labelerCoeffs      = {};
-let labelerMode        = 'speed';
-let engDirty           = false;
-let engSnapshot        = null;
-let engPinUnlocked     = false;
-let engPrevLine        = null;
-let pendingEngAction   = null;
+let labelerCoeffs = {};
+let labelerMode = 'speed';
+let engDirty = false;
+let engSnapshot = null;
+let engPinUnlocked = false;
+let engPrevLine = null;
+let pendingEngAction = null;
 
-function emptyDrive() {
-    return { a: null, b: null, r2: null, points: [], maxHz: null, calibrated: null };
-}
+function emptyDrive() { return { a: null, b: null, r2: null, points: [], maxHz: null, calibrated: null }; }
 
 function initEngStorage() {
     try { labelerCoeffs = JSON.parse(localStorage.getItem(ENG_STORAGE_KEY)) || {}; }
     catch { labelerCoeffs = {}; }
-
     KNOWN_LINES.forEach(l => {
         if (!labelerCoeffs[l]) {
             if (l === 'LINE_1_1') {
@@ -334,8 +315,7 @@ function getCoeffsForLine(line) { return labelerCoeffs[line]; }
 function getUsableCoeffs(line) {
     const c = labelerCoeffs[line];
     if (!c) return null;
-    const ready = ['conveyor','press','roller'].every(d => c[d].a > 0 && c[d].maxHz > 0);
-    return ready ? c : null;
+    return ['conveyor','press','roller'].every(d => c[d].a > 0 && c[d].maxHz > 0) ? c : null;
 }
 
 function takeEngSnapshot() { engSnapshot = JSON.stringify(labelerCoeffs); }
@@ -345,24 +325,19 @@ function setLabelerMode(mode) {
     labelerMode = mode;
     document.getElementById('mode-btn-speed').classList.toggle('mode-active', mode === 'speed');
     document.getElementById('mode-btn-hz').classList.toggle('mode-active', mode === 'hz');
-    const label = document.getElementById('labeler-input-label');
-    label.textContent = mode === 'speed' ? '📏 Скорость конвейера, м/мин' : '⚙ Частота конвейера, Гц';
+    document.getElementById('labeler-input-label').textContent = mode === 'speed' ? '📏 Скорость конвейера, м/мин' : '⚙ Частота конвейера, Гц';
     const unit = document.querySelector('.labeler-unit');
     if (unit) unit.textContent = mode === 'speed' ? 'м/мин' : 'Гц';
     calculateLabelerFrequencies();
 }
 
 function calculateLabelerFrequencies() {
-    const line  = document.getElementById('labelerLineSelect').value;
-    const c     = getUsableCoeffs(line);
-    const warn  = document.getElementById('labeler-calib-warning');
+    const line = document.getElementById('labelerLineSelect').value;
+    const c = getUsableCoeffs(line);
+    const warn = document.getElementById('labeler-calib-warning');
     const input = parseFloat(document.getElementById('conveyor-speed-input').value) || 0;
-
     if (!c) {
-        if (warn) {
-            warn.textContent = '⚠️ Линия не откалибрована. Значения приблизительные (по линии 1.1). Откройте инженерное меню.';
-            warn.classList.remove('hidden');
-        }
+        if (warn) { warn.textContent = '⚠️ Линия не откалибрована. Значения приблизительные (по линии 1.1).'; warn.classList.remove('hidden'); }
         renderLabelerOutputs(input, LABELER_DEFAULTS_LINE_1_1);
         return;
     }
@@ -376,46 +351,37 @@ function renderLabelerOutputs(input, coeffs) {
             document.getElementById(`labeler-${d}-freq`).textContent = '—';
             document.getElementById(`labeler-${d}-bar`).style.width = '0%';
         });
-        const speedOut = document.getElementById('labeler-calc-speed');
-        if (speedOut) speedOut.textContent = '—';
+        const s = document.getElementById('labeler-calc-speed');
+        if (s) s.textContent = '—';
         return;
     }
-
-    let speed;
-    if (labelerMode === 'speed') speed = input;
-    else speed = (input - coeffs.conveyor.b) / coeffs.conveyor.a;
-
-    const hzConv   = coeffs.conveyor.a * speed + coeffs.conveyor.b;
-    const hzPress  = coeffs.press.a    * speed + coeffs.press.b;
-    const hzRoller = coeffs.roller.a   * speed + coeffs.roller.b;
+    const speed = labelerMode === 'speed' ? input : (input - coeffs.conveyor.b) / coeffs.conveyor.a;
+    const hzConv = coeffs.conveyor.a * speed + coeffs.conveyor.b;
+    const hzPress = coeffs.press.a * speed + coeffs.press.b;
+    const hzRoller = coeffs.roller.a * speed + coeffs.roller.b;
 
     document.getElementById('labeler-conveyor-freq').textContent = hzConv.toFixed(1);
-    document.getElementById('labeler-press-freq').textContent    = hzPress.toFixed(1);
-    document.getElementById('labeler-roller-freq').textContent   = hzRoller.toFixed(1);
-
-    updateProgressBar('labeler-conveyor-bar', hzConv,   coeffs.conveyor.maxHz);
-    updateProgressBar('labeler-press-bar',    hzPress,  coeffs.press.maxHz);
-    updateProgressBar('labeler-roller-bar',   hzRoller, coeffs.roller.maxHz);
-
+    document.getElementById('labeler-press-freq').textContent = hzPress.toFixed(1);
+    document.getElementById('labeler-roller-freq').textContent = hzRoller.toFixed(1);
+    updateProgressBar('labeler-conveyor-bar', hzConv, coeffs.conveyor.maxHz);
+    updateProgressBar('labeler-press-bar', hzPress, coeffs.press.maxHz);
+    updateProgressBar('labeler-roller-bar', hzRoller, coeffs.roller.maxHz);
     document.getElementById('labeler-conveyor-max').textContent = `макс: ${coeffs.conveyor.maxHz} Гц`;
-    document.getElementById('labeler-press-max').textContent    = `макс: ${coeffs.press.maxHz} Гц`;
-    document.getElementById('labeler-roller-max').textContent   = `макс: ${coeffs.roller.maxHz} Гц`;
-
-    const speedOut = document.getElementById('labeler-calc-speed');
-    if (speedOut) speedOut.textContent = `≈ ${speed.toFixed(2)} м/мин`;
+    document.getElementById('labeler-press-max').textContent = `макс: ${coeffs.press.maxHz} Гц`;
+    document.getElementById('labeler-roller-max').textContent = `макс: ${coeffs.roller.maxHz} Гц`;
+    const s = document.getElementById('labeler-calc-speed');
+    if (s) s.textContent = `≈ ${speed.toFixed(2)} м/мин`;
 }
 
 function updateProgressBar(barId, currentFreq, maxFreq) {
     const bar = document.getElementById(barId);
-    if (!bar) return;
-    if (!maxFreq) { bar.style.width = '0%'; return; }
-    const percent = Math.min(currentFreq / maxFreq * 100, 100);
-    bar.style.width = percent + '%';
+    if (!bar || !maxFreq) { if (bar) bar.style.width = '0%'; return; }
+    bar.style.width = Math.min(currentFreq / maxFreq * 100, 100) + '%';
     const ratio = currentFreq / maxFreq;
     bar.classList.remove('bar-ok', 'bar-warn', 'bar-danger');
-    if (ratio >= 0.95)      bar.classList.add('bar-danger');
+    if (ratio >= 0.95) bar.classList.add('bar-danger');
     else if (ratio >= 0.80) bar.classList.add('bar-warn');
-    else                    bar.classList.add('bar-ok');
+    else bar.classList.add('bar-ok');
 }
 
 function resetLabelerForm() {
@@ -441,33 +407,34 @@ function updateKnifeInstructions() {
     else roundingBlock.classList.add('hidden');
 
     let html = '';
-    html += `<div class="knife-section-title">📐 Поперечная калибровка (угол стенки)</div>`;
-    html += `<div class="step-item"><span class="step-number">1</span><span class="step-text"><strong>Инклинометр на конвейере поперёк движения</strong> → <span class="step-highlight">обнулить</span> (конвейер остановлен)</span></div>`;
-    html += `<div class="step-item step-active"><span class="step-number">2</span><span class="step-text"><strong>Флакон под прижимом</strong> → замер наклона стенки по центру: <span class="step-highlight">${wallAngle.toFixed(1)}°</span></span></div>`;
+    html += `<div class="knife-section-title">📐 Поперечная калибровка</div>`;
+    html += `<div class="step-item"><span class="step-number">1</span><span class="step-text"><strong>Инклинометр на конвейере поперёк движения</strong> → <span class="step-highlight">обнулить</span></span></div>`;
+    html += `<div class="step-item step-active"><span class="step-number">2</span><span class="step-text"><strong>Флакон под прижимом</strong> → замер: <span class="step-highlight">${wallAngle.toFixed(1)}°</span></span></div>`;
     if (wallAngle === 0) {
-        html += `<div class="step-item step-done"><span class="step-number">💡</span><span class="step-text">Угол стенки = 0° — флакон перпендикулярен конвейеру. Настройка не требуется.</span></div>`;
+        html += `<div class="step-item step-done"><span class="step-number">💡</span><span class="step-text">Угол = 0° — флакон перпендикулярен конвейеру.</span></div>`;
     }
-    html += `<div class="step-item"><span class="step-number">3</span><span class="step-text"><strong>Перенести угол ${wallAngle.toFixed(1)}°</strong> на соответствующий нож</span></div>`;
-    html += `<div class="step-item"><span class="step-number">4</span><span class="step-text"><strong>Повторить процедуру</strong> для <span class="step-highlight">противоположной стороны</span></span></div>`;
-    html += `<div class="knife-section-title">➡️ Продольная калибровка (параллельность конвейеру)</div>`;
-    html += `<div class="step-item"><span class="step-number">5</span><span class="step-text"><strong>Инклинометр вдоль движения конвейера</strong> → <span class="step-highlight">обнулить</span></span></div>`;
-    html += `<div class="step-item"><span class="step-number">6</span><span class="step-text"><strong>Инклинометр к торцу ножа</strong> → выставить <span class="step-highlight">0°</span></span></div>`;
-    html += `<div class="step-item"><span class="step-number">7</span><span class="step-text"><strong>Повторить процедуру</strong> для <span class="step-highlight">противоположной стороны</span></span></div>`;
+    html += `<div class="step-item"><span class="step-number">3</span><span class="step-text"><strong>Перенести ${wallAngle.toFixed(1)}°</strong> на нож</span></div>`;
+    html += `<div class="step-item"><span class="step-number">4</span><span class="step-text"><strong>Повторить</strong> для противоположной стороны</span></div>`;
+    html += `<div class="knife-section-title">➡️ Продольная калибровка</div>`;
+    html += `<div class="step-item"><span class="step-number">5</span><span class="step-text"><strong>Инклинометр вдоль движения</strong> → <span class="step-highlight">обнулить</span></span></div>`;
+    html += `<div class="step-item"><span class="step-number">6</span><span class="step-text"><strong>Инклинометр к торцу ножа</strong> → <span class="step-highlight">0°</span></span></div>`;
+    html += `<div class="step-item"><span class="step-number">7</span><span class="step-text"><strong>Повторить</strong> для противоположной стороны</span></div>`;
+
     if (hasRounding) {
         html += `<div class="knife-section-title">🔄 Скругление</div>`;
-        html += `<div class="step-item step-active"><span class="step-number">8</span><span class="step-text"><strong>Замер угла скругления транспортиром</strong> → <span class="step-highlight">${roundingAngle.toFixed(1)}°</span></span></div>`;
-        html += `<div class="step-item"><span class="step-number">9</span><span class="step-text"><strong>Расстояние от ножа до флакона</strong> в самой широкой части <span class="step-highlight">≤ 5 мм</span></span></div>`;
-        html += `<div class="step-item"><span class="step-number">10</span><span class="step-text"><strong>Вылет этикетки</strong> — между ножом и самой узкой частью стенки</span></div>`;
+        html += `<div class="step-item step-active"><span class="step-number">8</span><span class="step-text"><strong>Угол скругления</strong> → <span class="step-highlight">${roundingAngle.toFixed(1)}°</span></span></div>`;
+        html += `<div class="step-item"><span class="step-number">9</span><span class="step-text"><strong>Зазор</strong> ≤ <span class="step-highlight">5 мм</span></span></div>`;
+        html += `<div class="step-item"><span class="step-number">10</span><span class="step-text"><strong>Вылет этикетки</strong> — между ножом и узкой частью</span></div>`;
     }
 
     let recommendation = '';
     if (wallAngle > 0) {
-        recommendation = `Установите нож под углом ${wallAngle.toFixed(1)}° (поперечная) и 0° (продольная)`;
-        if (hasRounding && roundingAngle > 0) recommendation += `, поворот ножа на ${roundingAngle.toFixed(1)}°`;
+        recommendation = `Нож под углом ${wallAngle.toFixed(1)}° (поперечная) и 0° (продольная)`;
+        if (hasRounding && roundingAngle > 0) recommendation += `, поворот ${roundingAngle.toFixed(1)}°`;
     } else if (hasRounding && roundingAngle > 0) {
-        recommendation = `Поворот ножа на ${roundingAngle.toFixed(1)}° для скругления. Зазор ≤ 5 мм.`;
+        recommendation = `Поворот ножа ${roundingAngle.toFixed(1)}°. Зазор ≤ 5 мм.`;
     } else {
-        recommendation = 'Нож параллелен конвейеру в двух плоскостях. Настройка выполнена.';
+        recommendation = 'Нож параллелен конвейеру. Настройка выполнена.';
     }
 
     recommendationText.textContent = recommendation;
@@ -494,32 +461,18 @@ function selectCappingType(type) {
     selectedCapType = type;
     const btnCap = document.getElementById('cap-type-cap');
     const btnTrigger = document.getElementById('cap-type-trigger');
-    if (type === 'cap') {
-        btnCap.classList.add('mode-active');
-        btnTrigger.classList.remove('mode-active');
-    } else {
-        btnTrigger.classList.add('mode-active');
-        btnCap.classList.remove('mode-active');
-    }
+    if (type === 'cap') { btnCap.classList.add('mode-active'); btnTrigger.classList.remove('mode-active'); }
+    else { btnTrigger.classList.add('mode-active'); btnCap.classList.remove('mode-active'); }
 }
 
 function calculateCappingParams() {
     const capType = selectedCapType;
     const D_cap = parseFloat(document.getElementById('cap-diameter').value) || 30;
-    const H_bottle = parseFloat(document.getElementById('capping-bottle-height').value) || 200;
-    const H_cap = parseFloat(document.getElementById('cap-height').value) || 15;
     const V_conv_ms = parseFloat(document.getElementById('capping-conveyor-speed').value) || 0.20;
     const material = document.getElementById('cap-material').value;
     const V_conv_mmin = V_conv_ms * 60;
 
-    const materialFactors = {
-        'pet':      { spindle: 1.0,  time: 1.0,  capper: 1.0,  pressure: 3.0 },
-        'metal':    { spindle: 0.82, time: 1.33, capper: 0.82, pressure: 3.5 },
-        'cork':     { spindle: 1.16, time: 0.67, capper: 1.16, pressure: 2.5 },
-        'aluminum': { spindle: 0.89, time: 1.17, capper: 0.89, pressure: 3.0 }
-    };
-    const mf = materialFactors[material] || materialFactors.pet;
-
+    const mf = { 'pet': { spindle: 1.0, time: 1.0, capper: 1.0, pressure: 3.0 } }[material] || { spindle: 1.0, time: 1.0, capper: 1.0, pressure: 3.0 };
     let sizeFactor = 1.0;
     if (D_cap < 25) sizeFactor = 1.1;
     else if (D_cap > 35) sizeFactor = 0.9;
@@ -529,15 +482,13 @@ function calculateCappingParams() {
     const V_capper = 73.00 * mf.capper * sizeFactor;
     const T_single = 0.50 * mf.time / sizeFactor;
     const P_capper = mf.pressure;
-
-    let useCapper = (capType !== 'trigger');
-    const T_total = useCapper ? (T_3balls + 0 + T_single) : T_3balls;
+    const useCapper = (capType !== 'trigger');
+    const T_total = useCapper ? (T_3balls + T_single) : T_3balls;
     const productivity = 3600 / T_total;
 
     displayCappingResult({
-        capType, material, D_cap, H_bottle, H_cap,
-        V_conv_ms, V_conv_mmin, V_spindle, T_3balls, V_capper, T_single, P_capper,
-        useCapper, T_sensor_delay: 0.73, T_delay: 0.00, T_total, productivity
+        capType, material, D_cap, V_conv_ms, V_conv_mmin, V_spindle, T_3balls,
+        V_capper, T_single, P_capper, useCapper, T_sensor_delay: 0.73, T_delay: 0.00, T_total, productivity
     });
 }
 
@@ -548,61 +499,49 @@ function displayCappingResult(params) {
     const mechanicalList = document.getElementById('capping-mechanical-list');
     const performanceList = document.getElementById('capping-performance-list');
     const stepsList = document.getElementById('capping-steps-list');
-
-    paramsList.innerHTML = ''; pneumaticList.innerHTML = '';
-    mechanicalList.innerHTML = ''; performanceList.innerHTML = '';
-    stepsList.innerHTML = '';
+    [paramsList, pneumaticList, mechanicalList, performanceList, stepsList].forEach(el => el.innerHTML = '');
 
     const typeLabel = params.capType === 'cap' ? '🏷 Крышка' : '🔫 Триггер';
-    const materialLabels = { 'pet': 'ПЭТ (пластик)', 'metal': 'Металл', 'cork': 'Пробка', 'aluminum': 'Алюминий' };
 
     paramsList.innerHTML += `<li>CONVEYOR SPEED: <span class="v">${params.V_conv_mmin.toFixed(2)}</span> м/мин</li>`;
-    paramsList.innerHTML += `<li>SIDE BELTS SPEED (3 BALL): <span class="v">${params.V_spindle.toFixed(2)}</span> Гц/%</li>`;
+    paramsList.innerHTML += `<li>SIDE BELTS (3 BALL): <span class="v">${params.V_spindle.toFixed(2)}</span> Гц</li>`;
     if (params.useCapper) {
-        paramsList.innerHTML += `<li>SIDE BELTS SPEED (SINGLE CAPPING): <span class="v">${params.V_capper.toFixed(2)}</span> Гц/%</li>`;
-        paramsList.innerHTML += `<li>CAP CLOSING TIME (3 BALLS): <span class="v">${params.T_3balls.toFixed(2)}</span> сек</li>`;
-        paramsList.innerHTML += `<li>CAP CLOSING TIME (SINGLE CAPPING): <span class="v">${params.T_single.toFixed(2)}</span> сек</li>`;
+        paramsList.innerHTML += `<li>SIDE BELTS (SINGLE): <span class="v">${params.V_capper.toFixed(2)}</span> Гц</li>`;
+        paramsList.innerHTML += `<li>CLOSING TIME (3 BALLS): <span class="v">${params.T_3balls.toFixed(2)}</span> сек</li>`;
+        paramsList.innerHTML += `<li>CLOSING TIME (SINGLE): <span class="v">${params.T_single.toFixed(2)}</span> сек</li>`;
     } else {
-        paramsList.innerHTML += `<li>SIDE BELTS SPEED (SINGLE): <span class="v-danger">❌ не используется</span></li>`;
-        paramsList.innerHTML += `<li>CAP CLOSING TIME (3 BALLS): <span class="v">${params.T_3balls.toFixed(2)}</span> сек</li>`;
-        paramsList.innerHTML += `<li>CAP CLOSING TIME (SINGLE): <span class="v-danger">❌ не используется</span></li>`;
+        paramsList.innerHTML += `<li>SIDE BELTS (SINGLE): <span class="v-danger">❌ не исп.</span></li>`;
+        paramsList.innerHTML += `<li>CLOSING TIME (3 BALLS): <span class="v">${params.T_3balls.toFixed(2)}</span> сек</li>`;
+        paramsList.innerHTML += `<li>CLOSING TIME (SINGLE): <span class="v-danger">❌ не исп.</span></li>`;
     }
-    paramsList.innerHTML += `<li>CAP CLOSING SENSOR DELAY: <span class="v">${params.T_sensor_delay.toFixed(2)}</span> сек</li>`;
+    paramsList.innerHTML += `<li>SENSOR DELAY: <span class="v">${params.T_sensor_delay.toFixed(2)}</span> сек</li>`;
     paramsList.innerHTML += `<li>CAP CLOSING DELAY: <span class="v">${params.T_delay.toFixed(2)}</span> сек</li>`;
 
     pneumaticList.innerHTML += `<li>Давление на входе: <span class="v-warn">5.0</span> бар</li>`;
     if (params.useCapper) {
         pneumaticList.innerHTML += `<li>Давление добивалки: <span class="v-warn">${params.P_capper.toFixed(1)}</span> бар</li>`;
-        pneumaticList.innerHTML += `<li>Фильтр-влагоотделитель: <span class="v-warn">слить конденсат</span></li>`;
+        pneumaticList.innerHTML += `<li>Фильтр: <span class="v-warn">слить конденсат</span></li>`;
         pneumaticList.innerHTML += `<li>Маслораспылитель: <span class="v-warn">проверить уровень</span></li>`;
     } else {
-        pneumaticList.innerHTML += `<li>Добивалка: <span class="v-danger">❌ не используется (триггер)</span></li>`;
+        pneumaticList.innerHTML += `<li>Добивалка: <span class="v-danger">❌ не исп.</span></li>`;
     }
 
     mechanicalList.innerHTML += `<li>Зазор ролик-крышка: <span class="v-warn">0.5–1.0</span> мм</li>`;
-    mechanicalList.innerHTML += `<li>Шпиндель 1: <span class="v-warn">чистый, эластичный</span></li>`;
-    mechanicalList.innerHTML += `<li>Шпиндель 2: <span class="v-warn">чистый, эластичный</span></li>`;
-    mechanicalList.innerHTML += `<li>Шпиндель 3: <span class="v-warn">гладкий, без задиров</span></li>`;
-    mechanicalList.innerHTML += `<li>Ремень: <span class="v-warn">натянут (прогиб 5–10 мм)</span></li>`;
-    if (params.useCapper) {
-        mechanicalList.innerHTML += `<li>Добивалка: <span class="v-warn">ход свободный, зазор 0.5 мм</span></li>`;
-    } else {
-        mechanicalList.innerHTML += `<li>Добивалка: <span class="v-danger">❌ не используется</span></li>`;
-    }
+    mechanicalList.innerHTML += `<li>Шпиндели: <span class="v-warn">чистые, эластичные</span></li>`;
+    mechanicalList.innerHTML += `<li>Ремень: <span class="v-warn">натянут (5–10 мм)</span></li>`;
 
-    performanceList.innerHTML += `<li>Тип укупорки: <span class="v-warn">${typeLabel}</span></li>`;
-    performanceList.innerHTML += `<li>Материал: <span class="v-warn">${materialLabels[params.material]}</span></li>`;
+    performanceList.innerHTML += `<li>Тип: <span class="v-warn">${typeLabel}</span></li>`;
     performanceList.innerHTML += `<li>Скорость: <span class="v">${params.V_conv_ms.toFixed(2)}</span> м/с (${params.V_conv_mmin.toFixed(1)} м/мин)</li>`;
-    performanceList.innerHTML += `<li>Полное время цикла: <span class="v">${params.T_total.toFixed(2)}</span> сек</li>`;
+    performanceList.innerHTML += `<li>Цикл: <span class="v">${params.T_total.toFixed(2)}</span> сек</li>`;
     performanceList.innerHTML += `<li>Производительность: <span class="v">${params.productivity.toFixed(0)}</span> бут/час</li>`;
 
-    stepsList.innerHTML += `<li class="v-warn">📋 Пошаговая инструкция:</li>`;
-    stepsList.innerHTML += `<li>ШАГ 1: проверить пневматику — 5.0 бар</li>`;
-    stepsList.innerHTML += `<li>ШАГ 2: проверить механику — ролики, ремень</li>`;
+    stepsList.innerHTML += `<li class="v-warn">📋 Инструкция переналадки:</li>`;
+    stepsList.innerHTML += `<li>ШАГ 1: пневматика — 5.0 бар, фильтр осушен</li>`;
+    stepsList.innerHTML += `<li>ШАГ 2: механика — ролики, ремень</li>`;
     stepsList.innerHTML += `<li>ШАГ 3: ввести параметры в панель</li>`;
-    stepsList.innerHTML += `<li>ШАГ 4: нажать «Отправка рецепта»</li>`;
+    stepsList.innerHTML += `<li>ШАГ 4: «Отправка рецепта»</li>`;
     stepsList.innerHTML += `<li>ШАГ 5: тестовая партия 5–10 флаконов</li>`;
-    stepsList.innerHTML += `<li>ШАГ 6: проверить качество закрутки</li>`;
+    stepsList.innerHTML += `<li>ШАГ 6: проверить закрутку</li>`;
     stepsList.innerHTML += `<li>ШАГ 7: скорректировать при необходимости</li>`;
     stepsList.innerHTML += `<li>ШАГ 8: записать в протокол</li>`;
 
@@ -631,7 +570,7 @@ function resetCappingForm() {
 }
 
 // ============================================================
-// 6. ОТПРАВКА В ПЛК
+// 6. ОТПРАВКА В ПЛК + МЕССЕНДЖЕР
 // ============================================================
 
 function openSendModal() { renderSendParams(); document.getElementById('send-modal-overlay').classList.remove('hidden'); }
@@ -672,17 +611,84 @@ function renderSendParams() {
 function copySendParams() {
     const lines = [];
     document.querySelectorAll('#send-params-block .send-list li').forEach((li) => {
-        const label = li.querySelector('span')?.textContent || '';
-        const value = li.querySelector('b')?.textContent || '';
-        lines.push(`${label}: ${value}`);
+        lines.push(`${li.querySelector('span')?.textContent || ''}: ${li.querySelector('b')?.textContent || ''}`);
     });
     navigator.clipboard.writeText(lines.join('\n')).then(() => {
-        document.querySelectorAll('#send-modal-overlay .btn-primary').forEach((btn) => {
+        document.querySelectorAll('#send-modal-overlay .btn-primary, #send-modal-overlay .btn-secondary').forEach((btn) => {
             const original = btn.textContent;
             btn.textContent = '✅ Скопировано!';
             setTimeout(() => { btn.textContent = original; }, 1800);
         });
     }).catch(() => alert('Не удалось скопировать.'));
+}
+
+function shareSendParams() {
+    const text = simBuildRecipeText();
+    if (navigator.share) {
+        navigator.share({
+            title: 'Рецепт налива · Mobile Assistant 2.0',
+            text: text
+        }).catch((err) => {
+            if (err && err.name !== 'AbortError') console.log('Share failed:', err);
+        });
+    } else {
+        navigator.clipboard.writeText(text).then(() => {
+            alert('Мессенджеры недоступны в этом браузере.\nТекст скопирован — вставьте вручную в нужный чат.');
+        }).catch(() => alert('Не удалось скопировать. Выделите текст вручную.'));
+    }
+}
+
+function simBuildRecipeText() {
+    const line = document.getElementById('lineSelect');
+    const lineText = line.selectedOptions[0].textContent;
+    const get = (id) => document.getElementById(id)?.textContent || '—';
+
+    const lines = [];
+    lines.push('📋 РЕЦЕПТ НАЛИВА');
+    lines.push('━━━━━━━━━━━━━━━━━━');
+    lines.push(`Линия: ${lineText}`);
+    lines.push(`Высота флакона: ${document.getElementById('bottleHeightInput').value} мм`);
+    lines.push(`Объём флакона: ${document.getElementById('bottleVolumeInput').value} мл`);
+    lines.push(`Целевой вес: ${document.getElementById('targetWeightInput').value} г`);
+    lines.push(`Плотность: ${document.getElementById('densityInput').value} г/мл`);
+    lines.push(`Вязкость: ${document.getElementById('viscosityInput').value} ед.`);
+    lines.push(`Объём заполнения: ${get('val_fill_volume')} мл`);
+    lines.push('');
+    lines.push('⚙️ СКОРОСТИ И ПОЗИЦИИ');
+    lines.push('━━━━━━━━━━━━━━━━━━');
+    lines.push(`1. Скорость насоса: ${get('val_pump_speed_1')}`);
+    lines.push(`2. Скорость насоса: ${get('val_pump_speed_2')}`);
+    lines.push(`3. Скорость насоса: ${get('val_pump_speed_3')}`);
+    lines.push(`1. Скорость подъёма: ${get('val_lift_speed_1')}`);
+    lines.push(`2. Скорость подъёма: ${get('val_lift_speed_2')}`);
+    lines.push(`3. Скорость подъёма: ${get('val_lift_speed_3')}`);
+    lines.push(`1. Положение сопла: ${get('val_nozzle_pos_1')} мм`);
+    lines.push(`2. Положение сопла: ${get('val_nozzle_pos_2')} мм`);
+    lines.push(`3. Положение сопла: ${get('val_nozzle_pos_3')} мм`);
+    lines.push(`Нижн. положение сопла: ${get('val_bottom_pos')} мм`);
+    lines.push(`Верхний налив: ${get('val_top_pour')} мм`);
+    lines.push(`Верхнее положение сопла: ${get('val_wait_point')} мм`);
+    lines.push('');
+    lines.push('🕐 ТАЙМИНГИ');
+    lines.push('━━━━━━━━━━━━━━━━━━');
+    lines.push(`Объём перехода 2: ${get('val_trans_volume_2')} мл`);
+    lines.push(`Объём перехода 3: ${get('val_trans_volume_3')} мл`);
+    lines.push(`Закр. шибера вход: ${get('val_shiber_close_in')} с`);
+    lines.push(`Откр. шибера вход: ${get('val_shiber_open_in')} с`);
+    lines.push(`Закр. шибера выход: ${get('val_shiber_close_out')} с`);
+    lines.push(`Задержка подъёма: ${get('sub_nozzle_lift_delay')}`);
+    lines.push('');
+    lines.push('🏭 КОНВЕЙЕР');
+    lines.push('━━━━━━━━━━━━━━━━━━');
+    lines.push(`Основная скорость: ${get('val_conveyor_main_speed')} м/мин`);
+    lines.push(`Низкая скорость: ${get('val_conveyor_low_speed')} м/мин`);
+    lines.push(`Скорость опускания траверсы: ${get('val_traverse_down_speed')}`);
+    lines.push('');
+    lines.push('━━━━━━━━━━━━━━━━━━');
+    lines.push(`📅 ${new Date().toLocaleString('ru-RU', {
+        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    })}`);
+    return lines.join('\n');
 }
 
 // ============================================================
@@ -691,10 +697,8 @@ function copySendParams() {
 
 function shareApp() {
     const url = window.location.origin + window.location.pathname;
-    const title = 'Mobile Assistant 2.0';
-    const text = 'Помощник наладчика линии розлива';
     if (navigator.share) {
-        navigator.share({ title, text, url }).catch(() => {});
+        navigator.share({ title: 'Mobile Assistant 2.0', text: 'Помощник наладчика линии розлива', url }).catch(() => {});
     } else {
         navigator.clipboard.writeText(url).then(() => alert('Ссылка скопирована:\n' + url))
             .catch(() => prompt('Скопируйте ссылку:', url));
@@ -866,8 +870,12 @@ function populateEngLineSelect() {
     const sel = document.getElementById('eng-line-select');
     if (sel.options.length) return;
     const lines = [
-        ['LINE_1_1','Линия 1.1'],['LINE_1_2','Линия 1.2'],['LINE_1_3','Линия 1.3'],
-        ['LINE_1_4','Линия 1.4'],['LINE_1_5','Линия 1.5'],['LINE_1_6','Линия 1.6']
+        ['LINE_1_1','Линия 1.1'],
+        ['LINE_1_2','Линия 1.2'],
+        ['LINE_1_3','Линия 1.3 · до 1 л'],
+        ['LINE_1_4','Линия 1.4 · 5 л канистры'],
+        ['LINE_1_5','Линия 1.5 · до 1 л вкл.'],
+        ['LINE_1_6','Линия 1.6 · 0.6/1/5 л']
     ];
     sel.innerHTML = lines.map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
     sel.value = document.getElementById('labelerLineSelect')?.value || 'LINE_1_3';
@@ -881,11 +889,8 @@ function switchEngLine() {
     if (isEngDirty()) {
         sel.value = prevLine;
         askUnsavedChanges('Есть несохранённые изменения. Что делать?', () => {
-            sel.value = newLine;
-            engPrevLine = newLine;
-            loadEngLine();
-            takeEngSnapshot();
-            engDirty = false;
+            sel.value = newLine; engPrevLine = newLine;
+            loadEngLine(); takeEngSnapshot(); engDirty = false;
         });
         return;
     }
@@ -904,19 +909,11 @@ function loadEngLine() {
         updateEngFit(drive, c[drive]);
         updateEngMaxHzHint(drive, c[drive]);
     });
-
     const badge = document.getElementById('eng-calib-status');
     const calStatuses = ['conveyor', 'press', 'roller'].map(d => c[d].calibrated).filter(v => v && v !== 'factory');
-    if (calStatuses.length === 3) {
-        badge.textContent = `✅ Откалибровано: ${calStatuses[0]}`;
-        badge.style.color = '#00e08a';
-    } else if (line === 'LINE_1_1') {
-        badge.textContent = '⚙️ Заводские значения (линия 1.1)';
-        badge.style.color = '#00d4ff';
-    } else {
-        badge.textContent = '⚠️ Не откалибровано — требуется замер';
-        badge.style.color = '#ffb020';
-    }
+    if (calStatuses.length === 3) { badge.textContent = `✅ Откалибровано: ${calStatuses[0]}`; badge.style.color = '#00e08a'; }
+    else if (line === 'LINE_1_1') { badge.textContent = '⚙️ Заводские значения (линия 1.1)'; badge.style.color = '#00d4ff'; }
+    else { badge.textContent = '⚠️ Не откалибровано'; badge.style.color = '#ffb020'; }
 }
 
 function renderEngRows(drive, points) {
@@ -975,8 +972,7 @@ function updateEngMaxHzHint(drive, driveObj) {
     const el = document.getElementById(hintId);
     if (!el) return;
     if (driveObj.a > 0 && driveObj.maxHz > 0) {
-        const maxSpeed = (driveObj.maxHz - (driveObj.b || 0)) / driveObj.a;
-        el.textContent = `= ${maxSpeed.toFixed(1)} м/мин`;
+        el.textContent = `= ${((driveObj.maxHz - (driveObj.b || 0)) / driveObj.a).toFixed(1)} м/мин`;
     } else el.textContent = '—';
 }
 
@@ -985,9 +981,7 @@ function updateEngFit(drive, driveObj) {
     const pts = (driveObj.points || [])
         .map(p => ({ hz: parseFloat(p.hz), speed: parseFloat(p.speed) }))
         .filter(p => p.hz > 0 && p.speed > 0);
-
-    if (pts.length === 0) { fitEl.textContent = '—'; fitEl.classList.remove('warn'); return; }
-
+    if (!pts.length) { fitEl.textContent = '—'; fitEl.classList.remove('warn'); return; }
     if (pts.length === 1) {
         const a = pts[0].hz / pts[0].speed;
         driveObj.a = a; driveObj.b = 0; driveObj.r2 = null;
@@ -996,28 +990,19 @@ function updateEngFit(drive, driveObj) {
         updateEngMaxHzHint(drive, driveObj);
         return;
     }
-
     const xs = pts.map(p => p.speed), ys = pts.map(p => p.hz);
     const n = xs.length;
-    const sx  = xs.reduce((a, b) => a + b, 0);
-    const sy  = ys.reduce((a, b) => a + b, 0);
+    const sx = xs.reduce((a, b) => a + b, 0), sy = ys.reduce((a, b) => a + b, 0);
     const sxy = xs.reduce((a, b, i) => a + b * ys[i], 0);
     const sxx = xs.reduce((a, b) => a + b * b, 0);
     const denom = n * sxx - sx * sx;
-
-    if (Math.abs(denom) < 1e-9) {
-        fitEl.textContent = '⚠️ Все точки имеют одинаковую скорость';
-        fitEl.classList.add('warn');
-        return;
-    }
-
+    if (Math.abs(denom) < 1e-9) { fitEl.textContent = '⚠️ Одинаковые скорости'; fitEl.classList.add('warn'); return; }
     const a = (n * sxy - sx * sy) / denom;
     const b = (sy - a * sx) / n;
     const meanY = sy / n;
     const ssTot = ys.reduce((acc, y) => acc + (y - meanY) ** 2, 0);
     const ssRes = ys.reduce((acc, y, i) => acc + (y - (a * xs[i] + b)) ** 2, 0);
     const r2 = ssTot > 0 ? 1 - ssRes / ssTot : 1;
-
     driveObj.a = a; driveObj.b = b; driveObj.r2 = r2;
     const sign = b >= 0 ? '+' : '−';
     fitEl.textContent = `Hz = ${a.toFixed(3)} × speed ${sign} ${Math.abs(b).toFixed(3)}  |  R² = ${r2.toFixed(4)}  (${n} точек)`;
@@ -1034,18 +1019,15 @@ function saveEngCoeffs(silent = false) {
     for (const drive of ['conveyor', 'press', 'roller']) {
         const d = c[drive];
         if (!d.a || d.a <= 0 || d.a > 100) { alert(`Привод "${driveLabel(drive)}": недостаточно данных.`); return false; }
-        if (!d.maxHz || d.maxHz < 1 || d.maxHz > 200) { alert(`Привод "${driveLabel(drive)}": укажите максимум Гц (1–200).`); return false; }
+        if (!d.maxHz || d.maxHz < 1 || d.maxHz > 200) { alert(`Привод "${driveLabel(drive)}": максимум Гц (1–200).`); return false; }
     }
     const today = new Date().toISOString().slice(0, 10);
     ['conveyor', 'press', 'roller'].forEach(d => { if ((c[d].points || []).length > 0) c[d].calibrated = today; });
     localStorage.setItem(ENG_STORAGE_KEY, JSON.stringify(labelerCoeffs));
     if (!silent) {
-        const lineName = document.getElementById('eng-line-select').selectedOptions[0].textContent;
-        alert(`Коэффициенты для "${lineName}" сохранены.`);
+        alert(`Коэффициенты для "${document.getElementById('eng-line-select').selectedOptions[0].textContent}" сохранены.`);
     }
-    loadEngLine();
-    calculateLabelerFrequencies();
-    takeEngSnapshot();
+    loadEngLine(); calculateLabelerFrequencies(); takeEngSnapshot();
     engDirty = false;
     engPrevLine = document.getElementById('eng-line-select').value;
     return true;
@@ -1079,7 +1061,6 @@ function _downloadJson(filename, data) {
 function exportEngAll() {
     _downloadJson(`labeler-calibration-all-${new Date().toISOString().slice(0, 10)}.json`, labelerCoeffs);
 }
-
 function exportEngCurrent() {
     const line = document.getElementById('eng-line-select').value;
     _downloadJson(`labeler-calibration-${line}-${new Date().toISOString().slice(0, 10)}.json`, { [line]: labelerCoeffs[line] });
@@ -1105,10 +1086,10 @@ function importEngCoeffs() {
                     labelerCoeffs[line] = drive;
                     imported.push(line);
                 }
-                if (imported.length === 0) { alert('Файл не содержит данных по известным линиям.'); return; }
+                if (!imported.length) { alert('Нет данных по известным линиям.'); return; }
                 localStorage.setItem(ENG_STORAGE_KEY, JSON.stringify(labelerCoeffs));
                 loadEngLine(); calculateLabelerFrequencies(); takeEngSnapshot(); engDirty = false;
-                let msg = `Импортировано линий: ${imported.length}\n` + imported.map(l => `  • ${l}`).join('\n');
+                let msg = `Импортировано: ${imported.length}\n` + imported.map(l => `  • ${l}`).join('\n');
                 if (skipped.length) msg += `\n\nПропущено:\n` + skipped.map(l => `  • ${l}`).join('\n');
                 alert(msg);
             } catch { alert('Не удалось прочитать файл.'); }
@@ -1127,15 +1108,12 @@ function askUnsavedChanges(text, onProceed) {
     document.getElementById('eng-confirm-text').textContent = text;
     document.getElementById('eng-confirm-overlay').classList.remove('hidden');
 }
-
 function engConfirmSave() {
-    const ok = saveEngCoeffs(true);
-    if (!ok) return;
+    if (!saveEngCoeffs(true)) return;
     document.getElementById('eng-confirm-overlay').classList.add('hidden');
     const act = pendingEngAction; pendingEngAction = null;
     if (act) act();
 }
-
 function engConfirmDiscard() {
     if (engSnapshot) labelerCoeffs = JSON.parse(engSnapshot);
     engDirty = false;
@@ -1143,12 +1121,10 @@ function engConfirmDiscard() {
     const act = pendingEngAction; pendingEngAction = null;
     if (act) act();
 }
-
 function engConfirmCancel() {
     pendingEngAction = null;
     document.getElementById('eng-confirm-overlay').classList.add('hidden');
 }
-
 function changeEngPin() {
     document.getElementById('pin-old').value = '';
     document.getElementById('pin-new').value = '';
@@ -1156,9 +1132,7 @@ function changeEngPin() {
     document.getElementById('pin-change-error').classList.add('hidden');
     document.getElementById('eng-pin-change-overlay').classList.remove('hidden');
 }
-
 function closePinChange() { document.getElementById('eng-pin-change-overlay').classList.add('hidden'); }
-
 function submitPinChange() {
     const oldPin = document.getElementById('pin-old').value;
     const newPin = document.getElementById('pin-new').value;
@@ -1179,7 +1153,6 @@ function submitPinChange() {
 
 function toggleExportMenu(event) { event.stopPropagation(); document.getElementById('export-dropdown').classList.toggle('hidden'); }
 function closeExportMenu() { document.getElementById('export-dropdown')?.classList.add('hidden'); }
-
 document.addEventListener('click', (e) => {
     const menu = document.getElementById('export-dropdown');
     if (!menu || menu.classList.contains('hidden')) return;
@@ -1295,7 +1268,6 @@ const SIM_CRUSH_LABELS = [
     'БРАТ, ТЫ ФЛАКОНЫ МНЁШЬ!',
     'БРАТ, ЗАДЕРЖКУ ПОДНИМИ!'
 ];
-
 let simCrushLabelIndex = 0;
 
 function simComputeDelayMin(visc) {
@@ -1303,11 +1275,36 @@ function simComputeDelayMin(visc) {
 }
 
 const SIM_ACCIDENTS = [
-    { title: '⚠️ ПЕНА ПРИ НАЛИВЕ', description: 'Пена. 1-я ступень слишком быстрая — снизьте её на 20%.', field: 'pump_speed_1', factor: 0.80 },
-    { title: '⚠️ НЕДОЛИВ 5%', description: 'Флаконы недолиты. Увеличьте 3-ю скорость на 10%.', field: 'pump_speed_3', factor: 1.10 },
-    { title: '⚠️ ПЕРЕЛИВ', description: 'Перелив через край. Уменьшите 2-ю скорость на 15%.', field: 'pump_speed_2', factor: 0.85 },
-    { title: '⚠️ ПРОДОЛЖИТЕЛЬНЫЙ ПОДЪЁМ', description: 'Сопло долго поднимается. Уменьшите задержку подъёма на 25%.', field: 'delay', factor: 0.75 },
-    { title: '⚠️ НЕСТАБИЛЬНЫЙ ПОТОК', description: 'Помпа пульсирует. 3-я скорость завышена на 15%.', field: 'pump_speed_3', factor: 1.15 }
+    {
+        title: '⚠️ ПЕНА ПРИ НАЛИВЕ',
+        description: 'Смена жалуется на пену в флаконах. Проверьте 1-ю скорость насоса и скорости подъёма.',
+        hintFields: ['pump_speed_1', 'lift_speed_1', 'lift_speed_2']
+    },
+    {
+        title: '⚠️ НЕДОЛИВ',
+        description: 'Флаконы недолиты — не хватает по верхней кромке. Проверьте 3-ю скорость насоса и объёмы перехода.',
+        hintFields: ['pump_speed_3', 'trans_volume_3']
+    },
+    {
+        title: '⚠️ ПЕРЕЛИВ',
+        description: 'Продукт переливается через край. Проверьте 2-ю скорость насоса.',
+        hintFields: ['pump_speed_2', 'trans_volume_2']
+    },
+    {
+        title: '⚠️ ДОЛГИЙ ПОДЪЁМ',
+        description: 'Теряется такт линии — сопло слишком долго поднимается. Проверьте задержку подъёма.',
+        hintFields: ['delay', 'lift_speed_3']
+    },
+    {
+        title: '⚠️ НЕСТАБИЛЬНЫЙ ПОТОК',
+        description: 'Помпа пульсирует, поток неравномерный. Проверьте 3-ю скорость насоса.',
+        hintFields: ['pump_speed_3']
+    },
+    {
+        title: '⚠️ РАЗБРЫЗГИВАНИЕ',
+        description: 'Продукт разбрызгивается при наливе. Проверьте 1-ю скорость насоса.',
+        hintFields: ['pump_speed_1']
+    }
 ];
 
 let simState = { score: 0, streak: 0, wins: 0, attempts: 0, bestScore: 0 };
@@ -1329,9 +1326,9 @@ function simSaveLeaderboard() { try { localStorage.setItem(SIM_LB_KEY, JSON.stri
 function simSaveUserRecipes() { try { localStorage.setItem(SIM_USER_RECIPES_KEY, JSON.stringify(simUserRecipes)); } catch {} }
 
 function simUpdateStatsUI() {
-    document.getElementById('sim-stat-score').textContent    = simState.score;
-    document.getElementById('sim-stat-streak').textContent   = simState.streak;
-    document.getElementById('sim-stat-wins').textContent     = simState.wins;
+    document.getElementById('sim-stat-score').textContent = simState.score;
+    document.getElementById('sim-stat-streak').textContent = simState.streak;
+    document.getElementById('sim-stat-wins').textContent = simState.wins;
     document.getElementById('sim-stat-attempts').textContent = simState.attempts;
 }
 
@@ -1404,21 +1401,75 @@ function simStart(difficulty) {
     document.getElementById('sim-line-select').classList.remove('hidden');
 }
 
+// Генерация рецепта с ошибками (режим АВАРИЯ)
+function simGenerateBrokenRecipe(ideal, fields, difficulty, accident) {
+    const errorCountMap = { easy: 1 + Math.floor(Math.random() * 2), medium: 2 + Math.floor(Math.random() * 2), hard: 3 + Math.floor(Math.random() * 2) };
+    const deviationRangeMap = { easy: [0.25, 0.50], medium: [0.15, 0.30], hard: [0.10, 0.20] };
+    const errorCount = Math.min(errorCountMap[difficulty] || 2, fields.length);
+    const [minDev, maxDev] = deviationRangeMap[difficulty] || [0.15, 0.30];
+
+    const pool = [...fields];
+    const preferred = (accident.hintFields || []).filter(f => pool.includes(f));
+    const broken = [];
+
+    const pickField = () => {
+        if (preferred.length && Math.random() < 0.6) {
+            const i = Math.floor(Math.random() * preferred.length);
+            const f = preferred.splice(i, 1)[0];
+            const pIdx = pool.indexOf(f);
+            if (pIdx >= 0) pool.splice(pIdx, 1);
+            return f;
+        }
+        if (!pool.length) return null;
+        return pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+    };
+
+    const roundByField = (field, value) => {
+        if (['pump_speed_1','pump_speed_2','pump_speed_3','conveyor_main_speed','conveyor_low_speed'].includes(field)) {
+            return parseFloat(value.toFixed(2));
+        }
+        if (['delay','shiber_open_in','shiber_close_in','shiber_close_out'].includes(field)) {
+            return parseFloat(Math.max(value, 0.1).toFixed(1));
+        }
+        return Math.max(Math.round(value), 1);
+    };
+
+    for (let i = 0; i < errorCount; i++) {
+        const field = pickField();
+        if (!field) break;
+        const originalValue = ideal[field];
+        if (!originalValue || originalValue <= 0) continue;
+
+        const mag = minDev + Math.random() * (maxDev - minDev);
+        const sign = Math.random() < 0.5 ? -1 : 1;
+        let brokenValue = roundByField(field, originalValue * (1 + sign * mag));
+        if (Math.abs(brokenValue - originalValue) / originalValue < 0.05) {
+            brokenValue = roundByField(field, originalValue * (1 + sign * 0.30));
+        }
+        broken.push({ field, value: brokenValue, originalValue });
+    }
+    return broken;
+}
+
 function simPickLine(line) {
     if (!simPendingDifficulty) return;
     const difficulty = simPendingDifficulty;
     simPendingDifficulty = null;
     const diff = SIM_DIFFICULTIES[difficulty];
     if (!diff) return;
+
     const task = simGenerateTask(line);
     const ideal = simCalculateIdeal(task.params);
-    let accident = null, brokenValue = null;
+
+    let accident = null;
+    let brokenFields = [];
     if (simMode === 'accident') {
         accident = SIM_ACCIDENTS[Math.floor(Math.random() * SIM_ACCIDENTS.length)];
-        brokenValue = ideal[accident.field] * accident.factor;
+        brokenFields = simGenerateBrokenRecipe(ideal, diff.fields, difficulty, accident);
     }
+
     simCurrent = {
-        difficulty, difficultyConfig: diff, task, ideal, accident, brokenValue,
+        difficulty, difficultyConfig: diff, task, ideal, accident, brokenFields,
         attemptIndex: simState.attempts + 1
     };
     simRenderTask();
@@ -1436,9 +1487,29 @@ function simGenerateTask(line) {
             isUserRecipe: true
         };
     }
-    const volume   = Math.round((300 + Math.random() * 4700) / 50) * 50;
-    const height   = 200 + Math.round((Math.random() * 130) / 5) * 5;
-    const density  = parseFloat((0.95 + Math.random() * 0.15).toFixed(2));
+
+    // Объём генерируется строго в пределах правил линии
+    const rule = LINE_VOLUME_RULES[line];
+    let volume;
+    if (rule && rule.allowed) {
+        volume = rule.allowed[Math.floor(Math.random() * rule.allowed.length)];
+    } else if (rule) {
+        const minV = Math.max(rule.min, 300);
+        const maxV = Math.min(rule.max, 5000);
+        volume = Math.round((minV + Math.random() * (maxV - minV)) / 50) * 50;
+        if (volume < minV) volume = minV;
+        if (volume > maxV) volume = maxV;
+    } else {
+        volume = Math.round((300 + Math.random() * 4700) / 50) * 50;
+    }
+
+    // Высота зависит от объёма
+    let height;
+    if (volume >= 4500) height = 300 + Math.round((Math.random() * 100) / 5) * 5;
+    else if (volume >= 900) height = 220 + Math.round((Math.random() * 60) / 5) * 5;
+    else height = 180 + Math.round((Math.random() * 80) / 5) * 5;
+
+    const density = parseFloat((0.95 + Math.random() * 0.15).toFixed(2));
     const viscPick = Math.random();
     let viscosity;
     if (viscPick < 0.35)      viscosity = 0;
@@ -1446,8 +1517,8 @@ function simGenerateTask(line) {
     else if (viscPick < 0.75) viscosity = 1500;
     else if (viscPick < 0.9)  viscosity = 2500;
     else                      viscosity = 3500;
-    const names = ['Продукт А', 'Продукт Б', 'Партия №' + (100 + Math.floor(Math.random() * 900)),
-                   'Заказ №' + (1000 + Math.floor(Math.random() * 9000))];
+
+    const names = ['Продукт А', 'Продукт Б', 'Партия №' + (100 + Math.floor(Math.random() * 900)), 'Заказ №' + (1000 + Math.floor(Math.random() * 9000))];
     const name = names[Math.floor(Math.random() * names.length)];
     return {
         product: { name, line, volume, density, viscosity },
@@ -1470,23 +1541,22 @@ function simCalculateIdeal(params) {
         density: document.getElementById('densityInput').value,
         visc: document.getElementById('viscosityInput').value
     };
-    document.getElementById('lineSelect').value        = params.line;
+    document.getElementById('lineSelect').value = params.line;
     document.getElementById('bottleHeightInput').value = params.height;
     document.getElementById('bottleVolumeInput').value = params.volume;
-    document.getElementById('targetWeightInput').value = Math.round(params.volume * params.density);
-    document.getElementById('densityInput').value      = params.density;
-    document.getElementById('viscosityInput').value    = params.viscosity;
+    document.getElementById('targetWeightInput').value = (params.volume * params.density).toFixed(1);
+    document.getElementById('densityInput').value = params.density;
+    document.getElementById('viscosityInput').value = params.viscosity;
     runUniversalCalculation();
 
     const pump2Text = document.getElementById('val_pump_speed_2').textContent;
     let pump2Ideal;
     if (pump2Text.includes('ДОН')) {
-        const match = pump2Text.match(/\(ДОН\.\)\s*([\d.]+)/);
-        pump2Ideal = match ? parseFloat(match[1]) : parseFloat(pump2Text) || 0;
+        const m = pump2Text.match(/\(ДОН\.\)\s*([\d.]+)/);
+        pump2Ideal = m ? parseFloat(m[1]) : parseFloat(pump2Text) || 0;
     } else pump2Ideal = parseFloat(pump2Text) || 0;
 
-    let shiberOpenIn = parseFloat(document.getElementById('val_shiber_open_in').textContent) || 0;
-    if (shiberOpenIn < 0.4) shiberOpenIn = 0.5;
+    const shiberOpenIn = parseFloat(document.getElementById('val_shiber_open_in').textContent) || 0;
 
     const ideal = {
         pump_speed_1:        parseFloat(document.getElementById('val_pump_speed_1').textContent) || 0,
@@ -1512,19 +1582,19 @@ function simCalculateIdeal(params) {
         conveyor_low_speed:  parseFloat(document.getElementById('val_conveyor_low_speed').textContent) || 0
     };
 
-    document.getElementById('lineSelect').value        = saved.line;
+    document.getElementById('lineSelect').value = saved.line;
     document.getElementById('bottleHeightInput').value = saved.height;
-    document.getElementById('bottleVolumeInput').value = saved.bottleVol;
+    document.getElementById('bottleVolumeInput').value = saved.bottlevol || saved.bottleVol;
     document.getElementById('targetWeightInput').value = saved.weight;
-    document.getElementById('densityInput').value      = saved.density;
-    document.getElementById('viscosityInput').value    = saved.visc;
+    document.getElementById('densityInput').value = saved.density;
+    document.getElementById('viscosityInput').value = saved.visc;
     runUniversalCalculation();
     return ideal;
 }
 
 function simRenderTask() {
     if (!simCurrent) return;
-    const { task, difficultyConfig, accident, brokenValue } = simCurrent;
+    const { task, difficultyConfig, accident, brokenFields } = simCurrent;
     document.getElementById('sim-task-diff').textContent = difficultyConfig.name;
     const attemptLabel = simMP
         ? `Раунд ${simMP.currentRound} · ${simMP.players[simMP.currentTurn].name}`
@@ -1543,6 +1613,7 @@ function simRenderTask() {
 
     if (simMode === 'accident' && accident) {
         titleEl.textContent = accident.title;
+        const brokenCount = brokenFields.length;
         listEl.innerHTML = `
             <li style="grid-column: span 2; padding: 6px 0; color:#ffb020; font-family:var(--font-ui); font-size:12px; line-height:1.5;">${accident.description}</li>
             <li><span>Линия</span><b>Линия ${prm.line.replace('LINE_', '')}</b></li>
@@ -1555,9 +1626,9 @@ function simRenderTask() {
                     <span style="color: rgba(255,176,32,0.7);">⚠️ Мин. задержка подъёма</span>
                     <b style="color: #ffb020;">${simComputeDelayMin(prm.viscosity).toFixed(1)} с</b>
                 </li>` : ''}
-            <li style="grid-column: span 2; border-top: 1px dashed rgba(255,176,32,0.3); padding-top: 6px; margin-top: 4px;">
-                <span style="color: #ffb020;">⚠️ Аварийное ${SIM_FIELD_LABELS[accident.field]}:</span>
-                <b style="color: #ff3344;">${accident.field === 'delay' ? brokenValue.toFixed(1) : Math.round(brokenValue)}</b>
+            <li style="grid-column: span 2; border-top: 1px solid rgba(255,51,68,0.5); margin-top: 6px; background: rgba(255,51,68,0.06); border-radius: 4px; padding: 6px 8px;">
+                <span style="color: #ff3344; font-weight: 700;">🔍 В рецепте ${brokenCount} ${brokenCount === 1 ? 'ошибка' : brokenCount < 5 ? 'ошибки' : 'ошибок'}.</span>
+                <span style="color: #ffb3ba; font-size: 11px; display: block; margin-top: 2px;">Найдите и исправьте неверные значения.</span>
             </li>`;
     } else {
         titleEl.textContent = '📋 ИСХОДНЫЕ ДАННЫЕ';
@@ -1578,6 +1649,13 @@ function simRenderTask() {
 
     const container = document.getElementById('sim-inputs');
     container.innerHTML = '';
+
+    const prefilled = {};
+    if (simMode === 'accident') {
+        difficultyConfig.fields.forEach(f => { prefilled[f] = simCurrent.ideal[f]; });
+        brokenFields.forEach(bf => { prefilled[bf.field] = bf.value; });
+    }
+
     difficultyConfig.fields.forEach(field => {
         const row = document.createElement('div');
         row.className = 'sim-input-row';
@@ -1598,9 +1676,13 @@ function simRenderTask() {
         else if (field.startsWith('nozzle_pos_') || field === 'wait_point' || field === 'top_pour' || field === 'bottom_pos') suffix = ' мм';
         else if (field.startsWith('trans_volume_')) suffix = ' мл';
         else if (field.startsWith('conveyor_')) suffix = ' м/мин';
+
+        const valueAttr = simMode === 'accident' && prefilled[field] !== undefined
+            ? `value="${prefilled[field]}"` : 'value=""';
+
         row.innerHTML = `
             <label for="sim-input-${field}">${SIM_FIELD_LABELS[field]}${suffix}</label>
-            <input id="sim-input-${field}" type="number" step="${step}" min="0" value="" autocomplete="off">`;
+            <input id="sim-input-${field}" type="number" step="${step}" min="0" ${valueAttr} autocomplete="off">`;
         container.appendChild(row);
     });
 
@@ -1622,12 +1704,12 @@ function simShowHint() {
     const { difficulty, accident } = simCurrent;
     let hintText;
     if (simMode === 'accident' && accident) {
-        hintText = `💡 Авария в поле «${SIM_FIELD_LABELS[accident.field]}». Восстановите нормальное значение.`;
+        hintText = `💡 Область проблемы: ${accident.hintFields.map(f => SIM_FIELD_LABELS[f]).join(', ')}. Ищите значения, которые сильно отличаются.`;
     } else {
         const hints = {
             easy:   `💡 Вода: базовые скорости. Мыло: скорость ниже, 2-я — выше. ⚠️ ПЛК: насос 1 ≤ 80 · насос 2 ≤ 80 · насос 3 ≤ 45.`,
-            medium: `💡 Больше объём — выше 2-я скорость подъёма. Вязкий продукт — скорости ниже. ⚠️ Откр. шибера вход ≥ 0.4 с. Задержка подъёма: вода → 3.0 с, мыло → 1.5 с. Если сопла слишком глубоко погружаются — уменьшайте плавно по 0.2 с. Насос 1,2 ≤ 80 · насос 3 ≤ 45.`,
-            hard:   `💡 Позиция 2 = 20% высоты, позиция 3 = 80%. ⚠️ Откр. шибера вход ≥ 0.4 с. Задержка ≥ 3.0 − (вязкость/800)×1.5. Если сопла слишком глубоко — шаг 0.2 с. Насос 1,2 ≤ 80 · насос 3 ≤ 45.`
+            medium: `💡 Больше объём — выше 2-я скорость подъёма. ⚠️ Откр. шибера вход ≥ 0.4 с. Задержка: вода → 3.0 с, мыло → 1.5 с. Если сопла глубоко — уменьшать по 0.2 с.`,
+            hard:   `💡 Позиция 2 = 20% высоты, 3 = 80%. ⚠️ Откр. шибера вход ≥ 0.4 с. Задержка ≥ 3.0 − (вязкость/800)×1.5. Насос 1,2 ≤ 80 · насос 3 ≤ 45.`
         };
         hintText = hints[difficulty];
     }
@@ -1638,8 +1720,8 @@ function simShowHint() {
 
 function simGetStreakMultiplier() {
     if (simState.streak >= 10) return 3;
-    if (simState.streak >= 5)  return 2;
-    if (simState.streak >= 3)  return 1.5;
+    if (simState.streak >= 5) return 2;
+    if (simState.streak >= 3) return 1.5;
     return 1;
 }
 
@@ -1647,8 +1729,7 @@ function simCheckPLCOverload(fields) {
     for (const field of fields) {
         const limit = SIM_PLC_LIMITS[field];
         if (!limit) continue;
-        const input = document.getElementById(`sim-input-${field}`);
-        const value = parseFloat(input?.value);
+        const value = parseFloat(document.getElementById(`sim-input-${field}`)?.value);
         if (isFinite(value) && value > limit) return { field, value, limit };
     }
     return null;
@@ -1660,8 +1741,7 @@ function simCheck() {
     const target = task.ideal || ideal;
 
     if (difficultyConfig.fields.includes('shiber_open_in')) {
-        const shiberInput = document.getElementById('sim-input-shiber_open_in');
-        const shiberValue = parseFloat(shiberInput?.value);
+        const shiberValue = parseFloat(document.getElementById('sim-input-shiber_open_in')?.value);
         if (isFinite(shiberValue) && shiberValue >= 0 && shiberValue < 0.4) {
             simShowAccidentOverlay(); return;
         }
@@ -1708,8 +1788,7 @@ function simCheck() {
             expl.className = 'sim-input-explain';
             const dirText = delta > 0 ? 'уменьшить' : 'увеличить';
             const diffAbs = Math.abs(delta);
-            const diffText = ['pump_speed_1','pump_speed_2','pump_speed_3'].includes(field)
-                ? diffAbs.toFixed(2) : Math.round(diffAbs);
+            const diffText = ['pump_speed_1','pump_speed_2','pump_speed_3'].includes(field) ? diffAbs.toFixed(2) : Math.round(diffAbs);
             expl.innerHTML = `↑ <b>${dirText}</b> на <b>${diffText}</b> (допуск ±${(difficultyConfig.tolerance*100).toFixed(0)}%)`;
             row.appendChild(expl);
         }
@@ -1742,10 +1821,10 @@ function simCheck() {
     let quality = 'fail';
     if (allOk) {
         const avgDev = results.reduce((a, r) => a + r.deviation, 0) / results.length;
-        if (avgDev <= 0.03)      quality = 'perfect';
+        if (avgDev <= 0.03) quality = 'perfect';
         else if (avgDev <= 0.07) quality = 'excellent';
         else if (avgDev <= 0.12) quality = 'good';
-        else                     quality = 'ok';
+        else quality = 'ok';
     }
     simShowOverlay(allOk, points, results, quality);
 }
@@ -1966,7 +2045,7 @@ function simRenderResult(win, points, results) {
 
     const explainBlock = document.getElementById('sim-explain-block');
     const explainList = document.getElementById('sim-explain-list');
-    const needExplain = simTrainingMode || !win;
+    const needExplain = simTrainingMode || simMode === 'accident' || !win;
     if (needExplain) {
         const explanations = simBuildExplanations(results, simCurrent);
         if (explanations.length) {
@@ -1984,8 +2063,47 @@ function simBuildExplanations(results, ctx) {
     const task = ctx.task || {};
     const params = task.params || {};
     const visc = params.viscosity || 0;
-    const bads = results.filter(r => !r.ok);
+    const isAccident = simMode === 'accident';
 
+    if (isAccident && ctx.brokenFields && ctx.brokenFields.length) {
+        const brokenMap = {};
+        ctx.brokenFields.forEach(bf => { brokenMap[bf.field] = bf; });
+
+        const fixedProperly = [];
+        const missedErrors = [];
+        const brokeCorrectFields = [];
+
+        results.forEach(r => {
+            const wasBroken = brokenMap[r.field];
+            if (wasBroken) {
+                if (r.ok) fixedProperly.push({ field: r.field, idealValue: r.idealValue });
+                else missedErrors.push({ field: r.field, userValue: r.userValue, idealValue: r.idealValue, wasBroken: wasBroken.value });
+            } else {
+                if (!r.ok) brokeCorrectFields.push({ field: r.field, userValue: r.userValue, idealValue: r.idealValue });
+            }
+        });
+
+        if (fixedProperly.length) {
+            list.push({ cls: 'is-ok', text: `<b>✅ Исправлено правильно:</b> ${fixedProperly.map(f => SIM_FIELD_LABELS[f.field]).join(', ')}.` });
+        }
+        if (missedErrors.length) {
+            const names = missedErrors.map(m => {
+                const bf = brokenMap[m.field];
+                return `<b>${SIM_FIELD_LABELS[m.field]}</b> (было ${bf.value}, надо ${m.idealValue})`;
+            }).join('; ');
+            list.push({ cls: 'is-danger', text: `<b>❌ Пропущенные ошибки:</b> ${names}.` });
+        }
+        if (brokeCorrectFields.length) {
+            const names = brokeCorrectFields.map(f => `<b>${SIM_FIELD_LABELS[f.field]}</b> (вы ввели ${f.userValue}, было правильное ${f.idealValue})`).join('; ');
+            list.push({ cls: 'is-danger', text: `<b>⚠️ Испортили правильные поля:</b> ${names}.` });
+        }
+        if (!list.length) {
+            list.push({ cls: 'is-ok', text: '<b>Отлично!</b> Вы нашли и исправили все ошибки, и не тронули правильные поля.' });
+        }
+        return list;
+    }
+
+    const bads = results.filter(r => !r.ok);
     if (!bads.length) {
         list.push({ cls: 'is-ok', text: '<b>Все уставки в допуске.</b> Можно запускать тестовую партию 5–10 флаконов.' });
         return list;
@@ -1999,52 +2117,40 @@ function simBuildExplanations(results, ctx) {
         let reason = '';
 
         if (field === 'pump_speed_1') {
-            reason = isHigher
-                ? `1-я скорость завышена. ${visc > 1000 ? `При вязкости ${visc} ед. продукт пенится — первую ступень снижают на 20–30%.` : `Для маловязких продуктов первая ступень должна быть мягче.`} Снизьте на ≈${diffAbs.toFixed(2)}.`
-                : `1-я скорость занижена. Слишком медленный старт. Добавьте ≈${diffAbs.toFixed(2)}.`;
+            reason = isHigher ? `1-я скорость завышена. Снизьте на ≈${diffAbs.toFixed(2)}.` : `1-я скорость занижена. Добавьте ≈${diffAbs.toFixed(2)}.`;
         } else if (field === 'pump_speed_2') {
-            reason = isHigher
-                ? `2-я скорость завышена — основной поток. Уменьшите на ≈${diffAbs.toFixed(2)}.`
-                : `2-я скорость занижена — продукт не успевает заполнить флакон. Добавьте ≈${diffAbs.toFixed(2)}.`;
+            reason = isHigher ? `2-я скорость завышена — основной поток. Уменьшите на ≈${diffAbs.toFixed(2)}.` : `2-я скорость занижена. Добавьте ≈${diffAbs.toFixed(2)}.`;
         } else if (field === 'pump_speed_3') {
-            reason = isHigher
-                ? `3-я скорость завышена. Верхний долив слишком резкий — будут брызги. Снизьте на ≈${diffAbs.toFixed(2)}.`
-                : `3-я скорость занижена — недолив по верхней кромке. Добавьте ≈${diffAbs.toFixed(2)}.`;
+            reason = isHigher ? `3-я скорость завышена — верхний долив резкий. Снизьте на ≈${diffAbs.toFixed(2)}.` : `3-я скорость занижена — недолив. Добавьте ≈${diffAbs.toFixed(2)}.`;
         } else if (field.startsWith('lift_speed_')) {
-            reason = isHigher
-                ? `Скорость подъёма завышена — брызги и капли на горлышке. Уменьшите на ≈${Math.round(diffAbs)}.`
-                : `Скорость подъёма занижена — теряется такт. Добавьте ≈${Math.round(diffAbs)}.`;
-        } else if (field === 'bottom_pos') {
-            reason = `Нижнее положение сопла задано неверно. Отклонение ${isHigher ? '+' : '−'}${Math.round(diffAbs)} мм.`;
-        } else if (field === 'top_pour') {
-            reason = `Верхний налив задан неверно. Ориентир: высота флакона − 30 мм. Отклонение ${isHigher ? '+' : '−'}${Math.round(diffAbs)} мм.`;
+            reason = isHigher ? `Скорость подъёма завышена — брызги. Уменьшите на ≈${Math.round(diffAbs)}.` : `Скорость подъёма занижена — теряется такт. Добавьте ≈${Math.round(diffAbs)}.`;
         } else if (field === 'delay') {
             const delayMinSafe = simComputeDelayMin(visc);
             if (r.belowSafeDelay) {
-                list.push({ cls: 'is-danger', text: `<b>Задержка подъёма ${userValue.toFixed(1)} с ниже безопасного минимума ${delayMinSafe.toFixed(1)} с</b> для вязкости ${visc} ед. Чем жиже продукт, тем дольше сопло должно быть в нижней точке.` });
+                list.push({ cls: 'is-danger', text: `<b>Задержка ${userValue.toFixed(1)} с ниже безопасного минимума ${delayMinSafe.toFixed(1)} с</b> для вязкости ${visc} ед.` });
                 return;
             }
-            reason = isHigher
-                ? `Задержка подъёма завышена. Сопло слишком долго в нижней точке. <b>Уменьшайте плавно по 0.2 с.</b>`
-                : `Задержка подъёма занижена. Минимум для вязкости ${visc} ед. — ${delayMinSafe.toFixed(1)} с.`;
+            reason = isHigher ? `Задержка подъёма завышена. <b>Уменьшайте плавно по 0.2 с.</b>` : `Задержка занижена. Минимум для вязкости ${visc} ед. — ${delayMinSafe.toFixed(1)} с.`;
         } else if (field === 'shiber_open_in') {
-            reason = `Открытие входного шибера настроено неверно. Норма ≥ 0.4 с. ${isHigher ? 'Слишком долгая задержка снижает такт.' : 'Слишком быстрая — риск замятия.'}`;
+            reason = `Открытие входного шибера: норма ≥ 0.4 с. ${isHigher ? 'Слишком долгая — снижает такт.' : 'Слишком быстрая — риск замятия.'}`;
         } else if (field.startsWith('nozzle_pos_')) {
             const num = field.slice(-1);
             const ref = num === '1' ? '40 мм' : num === '2' ? '20% от высоты' : '80% от высоты';
-            reason = `Положение сопла ${num} задано неверно. Ориентир: ${ref}. Отклонение ${isHigher ? '+' : '−'}${Math.round(diffAbs)} мм.`;
+            reason = `Положение сопла ${num} неверно. Ориентир: ${ref}. Отклонение ${isHigher ? '+' : '−'}${Math.round(diffAbs)} мм.`;
         } else if (field.startsWith('trans_volume_')) {
-            reason = `Объём перехода ${field.slice(-1)} задан неверно. Отклонение ${isHigher ? '+' : '−'}${Math.round(diffAbs)} мл.`;
+            reason = `Объём перехода ${field.slice(-1)} неверен. Отклонение ${isHigher ? '+' : '−'}${Math.round(diffAbs)} мл.`;
         } else if (field === 'wait_point') {
-            reason = `Верхнее положение сопла — точка ожидания. Ориентир: высота + 100 мм. Отклонение ${isHigher ? '+' : '−'}${Math.round(diffAbs)} мм.`;
+            reason = `Верхнее положение сопла. Ориентир: высота + 100 мм. Отклонение ${isHigher ? '+' : '−'}${Math.round(diffAbs)} мм.`;
+        } else if (field === 'bottom_pos' || field === 'top_pour') {
+            reason = `Позиция ${field === 'bottom_pos' ? 'нижнего' : 'верхнего'} положения неверна. Отклонение ${isHigher ? '+' : '−'}${Math.round(diffAbs)} мм.`;
         } else if (field === 'shiber_close_in' || field === 'shiber_close_out') {
             const name = field === 'shiber_close_in' ? 'входа' : 'выхода';
-            reason = `Тайминг закрытия шибера ${name}: ${isHigher ? 'слишком долгая пауза — снижается такт.' : 'слишком быстрая — риск протечки.'}`;
+            reason = `Тайминг закрытия шибера ${name}: ${isHigher ? 'слишком долгая пауза.' : 'слишком быстрая — риск протечки.'}`;
         } else if (field === 'traverse_down_speed') {
             reason = `Скорость опускания траверсы: ${isHigher ? 'слишком быстро — удары и износ.' : 'слишком медленно — теряется такт.'}`;
         } else if (field === 'conveyor_main_speed' || field === 'conveyor_low_speed') {
             const name = field === 'conveyor_main_speed' ? 'Основная' : 'Низкая';
-            reason = `${name} скорость конвейера задана неверно. Отклонение ${isHigher ? '+' : '−'}${diffAbs.toFixed(2)} м/мин.`;
+            reason = `${name} скорость конвейера неверна. Отклонение ${isHigher ? '+' : '−'}${diffAbs.toFixed(2)} м/мин.`;
         }
         if (reason) list.push({ text: reason });
     });
@@ -2056,13 +2162,11 @@ function simAskName() {
     document.getElementById('sim-name-overlay').classList.remove('hidden');
     setTimeout(() => document.getElementById('sim-name-input').focus(), 200);
 }
-
 function simSubmitName() {
     const name = document.getElementById('sim-name-input').value.trim() || 'Аноним';
     simPushToLeaderboard(name);
     document.getElementById('sim-name-overlay').classList.add('hidden');
 }
-
 function simSkipName() {
     simPushToLeaderboard('Аноним');
     document.getElementById('sim-name-overlay').classList.add('hidden');
@@ -2113,8 +2217,8 @@ function simMPStart() {
 function simMPRenderScoreboard() {
     if (!simMP) return;
     document.getElementById('sim-mp-score').classList.remove('hidden');
-    document.getElementById('sim-mp-p1-name').textContent  = simMP.players[0].name;
-    document.getElementById('sim-mp-p2-name').textContent  = simMP.players[1].name;
+    document.getElementById('sim-mp-p1-name').textContent = simMP.players[0].name;
+    document.getElementById('sim-mp-p2-name').textContent = simMP.players[1].name;
     document.getElementById('sim-mp-p1-score').textContent = simMP.players[0].score;
     document.getElementById('sim-mp-p2-score').textContent = simMP.players[1].score;
     document.getElementById('sim-mp-round').textContent = `Раунд ${simMP.currentRound} / ${simMP.totalRounds}`;
@@ -2187,17 +2291,17 @@ function simPlaySound(type) {
         };
         if (type === 'accident') {
             playBeep(1046, 0.00, 0.08, 0.20, 'sawtooth');
-            playBeep(784,  0.08, 0.10, 0.20, 'sawtooth');
-            playBeep(523,  0.18, 0.12, 0.20, 'sawtooth');
-            playBeep(261,  0.30, 0.25, 0.20, 'sawtooth');
-            playBeep(130,  0.55, 0.50, 0.15, 'sawtooth');
+            playBeep(784, 0.08, 0.10, 0.20, 'sawtooth');
+            playBeep(523, 0.18, 0.12, 0.20, 'sawtooth');
+            playBeep(261, 0.30, 0.25, 0.20, 'sawtooth');
+            playBeep(130, 0.55, 0.50, 0.15, 'sawtooth');
         } else if (type === 'overload') {
-            playBeep(180, 0.00, 0.10, 0.18, 'square');
-            playBeep(180, 0.12, 0.10, 0.18, 'square');
-            playBeep(220, 0.24, 0.10, 0.18, 'square');
-            playBeep(220, 0.36, 0.10, 0.18, 'square');
-            playBeep(140, 0.50, 0.40, 0.20, 'square');
-            playBeep(110, 0.90, 0.60, 0.18, 'square');
+            playBeep(180, 0.00, 0.10, 0.18);
+            playBeep(180, 0.12, 0.10, 0.18);
+            playBeep(220, 0.24, 0.10, 0.18);
+            playBeep(220, 0.36, 0.10, 0.18);
+            playBeep(140, 0.50, 0.40, 0.20);
+            playBeep(110, 0.90, 0.60, 0.18);
         } else if (type === 'win') {
             playBeep(523, 0.00, 0.12); playBeep(659, 0.12, 0.12);
             playBeep(784, 0.24, 0.12); playBeep(1046, 0.36, 0.30);
@@ -2243,9 +2347,15 @@ function userRecipeAdd() {
     const volume = parseFloat(document.getElementById('ur-volume').value) || 0;
     const density = parseFloat(document.getElementById('ur-density').value) || 1.0;
     const viscosity = parseFloat(document.getElementById('ur-visc').value) || 0;
+
     if (!name) { alert('Введите название'); return; }
     if (volume < 50 || volume > 6000) { alert('Объём 50–6000 мл'); return; }
     if (density < 0.75 || density > 1.30) { alert('Плотность 0.75–1.30'); return; }
+    if (!isVolumeAllowedForLine(line, volume)) {
+        alert(`Линия ${line.replace('LINE_', '')} работает только с форматом: ${getLineVolumeLabel(line)}.\nОбъём ${volume} мл — несоответствие.`);
+        return;
+    }
+
     simUserRecipes.push({ name, line, volume, density, viscosity });
     simSaveUserRecipes();
     userRecipeRender();
