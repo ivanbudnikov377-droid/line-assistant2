@@ -33,7 +33,136 @@ function getLineVolumeWarning(line, volume) {
 }
 
 // ============================================================
-// 1. ОСНОВНОЙ РАСЧЁТ ДЛЯ НАЛИВА
+// 1. ЗАСТАВКА ПРИ ЗАПУСКЕ
+// ============================================================
+
+function dismissSplash() {
+    const splash = document.getElementById('splash-screen');
+    if (!splash || splash.classList.contains('fade-out')) return;
+    splash.classList.add('fade-out');
+    setTimeout(() => {
+        splash.classList.add('hidden');
+    }, 650);
+    if (navigator.vibrate) navigator.vibrate(30);
+    simPlaySound('win');
+}
+
+function initSplash() {
+    // Частицы
+    const container = document.getElementById('splash-particles');
+    if (container) {
+        for (let i = 0; i < 20; i++) {
+            const p = document.createElement('div');
+            p.className = 'splash-particle';
+            p.style.left = (Math.random() * 100) + '%';
+            p.style.bottom = '-10px';
+            p.style.animationDuration = (3 + Math.random() * 3) + 's';
+            p.style.animationDelay = (Math.random() * 2) + 's';
+            p.style.opacity = 0.3 + Math.random() * 0.7;
+            const size = 2 + Math.random() * 4;
+            p.style.width = size + 'px';
+            p.style.height = size + 'px';
+            container.appendChild(p);
+        }
+    }
+
+    // Через 2 секунды прогресс-бар заканчивается — меняем подсказку
+    setTimeout(() => {
+        const hint = document.getElementById('splash-hint');
+        if (hint) {
+            hint.textContent = 'НАЖМИТЕ, ЧТОБЫ ПРОДОЛЖИТЬ';
+            hint.classList.add('ready');
+        }
+    }, 2000);
+}
+
+// ============================================================
+// 2. ПЕРЕКЛЮЧЕНИЕ ВВОД ↔ РЕЦЕПТ
+// ============================================================
+
+function generateRecipeView() {
+    // Считаем
+    runUniversalCalculation();
+
+    // Проверяем соответствие линии и объёма
+    const line = document.getElementById('lineSelect').value;
+    const vol = parseFloat(document.getElementById('bottleVolumeInput').value);
+    if (!isVolumeAllowedForLine(line, vol)) {
+        if (!confirm(`${getLineVolumeWarning(line, vol)}\n\nПродолжить?`)) return;
+    }
+
+    // Обновляем заголовок рецепта
+    const headerLine = document.getElementById('recipe-header-line');
+    if (headerLine) {
+        const lineText = document.getElementById('lineSelect').selectedOptions[0].textContent;
+        headerLine.textContent = lineText;
+    }
+
+    // Прячем ввод, показываем рецепт с анимацией
+    const inputView = document.getElementById('filling-input-view');
+    const recipeView = document.getElementById('filling-recipe-view');
+
+    inputView.classList.add('view-exit');
+    setTimeout(() => {
+        inputView.classList.add('hidden');
+        inputView.classList.remove('view-exit', 'view-enter');
+        recipeView.classList.remove('hidden');
+        recipeView.classList.add('view-enter');
+        setTimeout(() => recipeView.classList.remove('view-enter'), 450);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 380);
+}
+
+function backToInputView() {
+    const inputView = document.getElementById('filling-input-view');
+    const recipeView = document.getElementById('filling-recipe-view');
+
+    recipeView.classList.add('view-exit');
+    setTimeout(() => {
+        recipeView.classList.add('hidden');
+        recipeView.classList.remove('view-exit', 'view-enter');
+        inputView.classList.remove('hidden');
+        inputView.classList.add('view-enter');
+        setTimeout(() => inputView.classList.remove('view-enter'), 450);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 380);
+}
+
+function refreshRecipe() {
+    // Показываем анимацию кнопки
+    const btn = document.getElementById('btn-refresh');
+    if (btn) {
+        btn.classList.add('spinning');
+        setTimeout(() => btn.classList.remove('spinning'), 800);
+    }
+
+    // Пересчитываем
+    runUniversalCalculation();
+
+    // Обновляем заголовок
+    const headerLine = document.getElementById('recipe-header-line');
+    if (headerLine) {
+        const lineText = document.getElementById('lineSelect').selectedOptions[0].textContent;
+        headerLine.textContent = lineText;
+    }
+
+    // Пульс-эффект по экрану ПЛК
+    const plc = document.querySelector('.plc');
+    if (plc) {
+        plc.style.transition = 'box-shadow 0.4s';
+        plc.style.boxShadow = '0 0 30px rgba(0, 255, 136, 0.5)';
+        setTimeout(() => {
+            plc.style.boxShadow = '';
+        }, 500);
+    }
+}
+
+function shareCurrentRecipe() {
+    shareSendParams();
+}
+
+// ============================================================
+// 3. ОСНОВНОЙ РАСЧЁТ ДЛЯ НАЛИВА
 // ============================================================
 
 function runUniversalCalculation() {
@@ -255,7 +384,7 @@ function runUniversalCalculation() {
 }
 
 // ============================================================
-// 2. ЛОГИКА ВКЛАДОК
+// 4. ЛОГИКА ВКЛАДОК
 // ============================================================
 
 function switchTab(tabName) {
@@ -268,7 +397,7 @@ function switchTab(tabName) {
 }
 
 // ============================================================
-// 3. КАЛЬКУЛЯТОР ЭТИКЕТОВЩИКА
+// 5. КАЛЬКУЛЯТОР ЭТИКЕТОВЩИКА
 // ============================================================
 
 const LABELER_DEFAULTS_LINE_1_1 = {
@@ -391,7 +520,7 @@ function resetLabelerForm() {
 }
 
 // ============================================================
-// 4. УГОЛ НОЖА
+// 6. УГОЛ НОЖА
 // ============================================================
 
 function updateKnifeInstructions() {
@@ -452,7 +581,7 @@ function resetKnifeForm() {
 }
 
 // ============================================================
-// 5. УКУПОР
+// 7. УКУПОР
 // ============================================================
 
 let selectedCapType = 'cap';
@@ -472,7 +601,7 @@ function calculateCappingParams() {
     const material = document.getElementById('cap-material').value;
     const V_conv_mmin = V_conv_ms * 60;
 
-    const mf = { 'pet': { spindle: 1.0, time: 1.0, capper: 1.0, pressure: 3.0 } }[material] || { spindle: 1.0, time: 1.0, capper: 1.0, pressure: 3.0 };
+    const mf = { spindle: 1.0, time: 1.0, capper: 1.0, pressure: 3.0 };
     let sizeFactor = 1.0;
     if (D_cap < 25) sizeFactor = 1.1;
     else if (D_cap > 35) sizeFactor = 0.9;
@@ -570,7 +699,7 @@ function resetCappingForm() {
 }
 
 // ============================================================
-// 6. ОТПРАВКА В ПЛК + МЕССЕНДЖЕР
+// 8. ОТПРАВКА В ПЛК + МЕССЕНДЖЕР
 // ============================================================
 
 function openSendModal() { renderSendParams(); document.getElementById('send-modal-overlay').classList.remove('hidden'); }
@@ -692,7 +821,7 @@ function simBuildRecipeText() {
 }
 
 // ============================================================
-// 7. ПОДЕЛИТЬСЯ ССЫЛКОЙ
+// 9. ПОДЕЛИТЬСЯ ССЫЛКОЙ
 // ============================================================
 
 function shareApp() {
@@ -706,7 +835,7 @@ function shareApp() {
 }
 
 // ============================================================
-// 8. ЖУРНАЛ НАЛАДОК
+// 10. ЖУРНАЛ НАЛАДОК
 // ============================================================
 
 const JOURNAL_KEY = 'line-assistant-journal';
@@ -797,6 +926,11 @@ function restoreJournalEntry(id) {
     document.getElementById('densityInput').value = e.density;
     document.getElementById('viscosityInput').value = e.viscosity;
     closeJournal(); switchTab('filling'); runUniversalCalculation();
+    // Возвращаемся на экран ввода
+    const inputView = document.getElementById('filling-input-view');
+    const recipeView = document.getElementById('filling-recipe-view');
+    if (inputView) inputView.classList.remove('hidden');
+    if (recipeView) recipeView.classList.add('hidden');
 }
 
 function clearJournal() {
@@ -816,7 +950,7 @@ function exportJournal() {
 }
 
 // ============================================================
-// 9. ИНЖЕНЕРНОЕ МЕНЮ
+// 11. ИНЖЕНЕРНОЕ МЕНЮ
 // ============================================================
 
 function openEngMenu() {
@@ -1100,7 +1234,7 @@ function importEngCoeffs() {
 }
 
 // ============================================================
-// 10. PIN И ПОДТВЕРЖДЕНИЯ
+// 12. PIN И ПОДТВЕРЖДЕНИЯ
 // ============================================================
 
 function askUnsavedChanges(text, onProceed) {
@@ -1148,7 +1282,7 @@ function submitPinChange() {
 }
 
 // ============================================================
-// 11. ДРОПДАУН ЭКСПОРТА
+// 13. ДРОПДАУН ЭКСПОРТА
 // ============================================================
 
 function toggleExportMenu(event) { event.stopPropagation(); document.getElementById('export-dropdown').classList.toggle('hidden'); }
@@ -1160,7 +1294,7 @@ document.addEventListener('click', (e) => {
 });
 
 // ============================================================
-// 12. ESC
+// 14. ESC
 // ============================================================
 
 document.addEventListener('keydown', (e) => {
@@ -1199,7 +1333,7 @@ window.addEventListener('beforeunload', (e) => {
 });
 
 // ============================================================
-// 13. ТРЕНАЖЁР НАЛИВА · ПОЛНАЯ ВЕРСИЯ 3.0
+// 15. ТРЕНАЖЁР НАЛИВА
 // ============================================================
 
 const SIM_STORAGE_KEY      = 'line-assistant-sim-stats';
@@ -1401,7 +1535,6 @@ function simStart(difficulty) {
     document.getElementById('sim-line-select').classList.remove('hidden');
 }
 
-// Генерация рецепта с ошибками (режим АВАРИЯ)
 function simGenerateBrokenRecipe(ideal, fields, difficulty, accident) {
     const errorCountMap = { easy: 1 + Math.floor(Math.random() * 2), medium: 2 + Math.floor(Math.random() * 2), hard: 3 + Math.floor(Math.random() * 2) };
     const deviationRangeMap = { easy: [0.25, 0.50], medium: [0.15, 0.30], hard: [0.10, 0.20] };
@@ -1488,7 +1621,6 @@ function simGenerateTask(line) {
         };
     }
 
-    // Объём генерируется строго в пределах правил линии
     const rule = LINE_VOLUME_RULES[line];
     let volume;
     if (rule && rule.allowed) {
@@ -1503,7 +1635,6 @@ function simGenerateTask(line) {
         volume = Math.round((300 + Math.random() * 4700) / 50) * 50;
     }
 
-    // Высота зависит от объёма
     let height;
     if (volume >= 4500) height = 300 + Math.round((Math.random() * 100) / 5) * 5;
     else if (volume >= 900) height = 220 + Math.round((Math.random() * 60) / 5) * 5;
@@ -1584,7 +1715,7 @@ function simCalculateIdeal(params) {
 
     document.getElementById('lineSelect').value = saved.line;
     document.getElementById('bottleHeightInput').value = saved.height;
-    document.getElementById('bottleVolumeInput').value = saved.bottlevol || saved.bottleVol;
+    document.getElementById('bottleVolumeInput').value = saved.bottleVol;
     document.getElementById('targetWeightInput').value = saved.weight;
     document.getElementById('densityInput').value = saved.density;
     document.getElementById('viscosityInput').value = saved.visc;
@@ -2191,6 +2322,11 @@ function simShowCalc() {
     document.getElementById('viscosityInput').value = prm.viscosity;
     runUniversalCalculation();
     switchTab('filling');
+    // Возвращаемся на экран ввода
+    const inputView = document.getElementById('filling-input-view');
+    const recipeView = document.getElementById('filling-recipe-view');
+    if (inputView) inputView.classList.remove('hidden');
+    if (recipeView) recipeView.classList.add('hidden');
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -2268,7 +2404,7 @@ function simMPFinish() {
 }
 
 // ============================================================
-// 14. ЗВУКИ
+// 16. ЗВУКИ
 // ============================================================
 
 let simAudioCtx = null;
@@ -2317,7 +2453,7 @@ function simPlaySound(type) {
 }
 
 // ============================================================
-// 15. МОИ РЕЦЕПТЫ
+// 17. МОИ РЕЦЕПТЫ
 // ============================================================
 
 function openUserRecipes() {
@@ -2385,10 +2521,11 @@ function simInit() {
 }
 
 // ============================================================
-// 16. ИНИЦИАЛИЗАЦИЯ
+// 18. ИНИЦИАЛИЗАЦИЯ
 // ============================================================
 
 window.addEventListener('DOMContentLoaded', () => {
+    initSplash();
     initEngStorage();
     loadJournal();
     simInit();
