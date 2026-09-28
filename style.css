@@ -17,6 +17,7 @@
     --success:      #00e08a;
     --warning:      #ffb020;
     --danger:       #ff4757;
+    --neon-green:   #00ff88;
     --r-sm: 6px;
     --r:    10px;
     --r-lg: 14px;
@@ -43,6 +44,238 @@ body {
 button, input, select { font-family: inherit; }
 button { cursor: pointer; }
 .hidden { display: none !important; }
+
+/* ============================================================
+   ЗАСТАВКА ПРИ ЗАПУСКЕ (исчезает только по тапу)
+   ============================================================ */
+.splash-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    background: radial-gradient(ellipse at center, #001a0d 0%, #000 80%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    cursor: pointer;
+    transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.splash-screen.fade-out {
+    opacity: 0;
+    transform: scale(1.1);
+    pointer-events: none;
+}
+.splash-screen.hidden { display: none !important; }
+
+.splash-scanlines {
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+        0deg,
+        rgba(0, 0, 0, 0.35) 0px,
+        rgba(0, 0, 0, 0.35) 1px,
+        transparent 1px,
+        transparent 3px
+    );
+    pointer-events: none;
+    z-index: 3;
+    animation: splashScan 8s linear infinite;
+}
+@keyframes splashScan {
+    from { background-position: 0 0; }
+    to   { background-position: 0 30px; }
+}
+
+.splash-glow {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, rgba(0, 255, 136, 0.15) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 1;
+    animation: splashGlowPulse 2s ease-in-out infinite alternate;
+}
+@keyframes splashGlowPulse {
+    from { opacity: 0.4; }
+    to   { opacity: 0.9; }
+}
+
+.splash-content {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 20px;
+    animation: splashContentIn 0.8s cubic-bezier(0.5, 1.5, 0.6, 1);
+}
+@keyframes splashContentIn {
+    from { opacity: 0; transform: scale(0.7); }
+    to   { opacity: 1; transform: scale(1); }
+}
+
+.splash-logo {
+    width: 100px;
+    height: 120px;
+    margin-bottom: 24px;
+    position: relative;
+    filter: drop-shadow(0 0 20px rgba(0, 255, 136, 0.8))
+            drop-shadow(0 0 40px rgba(0, 255, 136, 0.5));
+    animation: splashLogoFloat 2.4s ease-in-out infinite alternate,
+               splashLogoGlow 1.2s ease-in-out infinite alternate;
+}
+@keyframes splashLogoFloat {
+    from { transform: translateY(0) rotate(-2deg); }
+    to   { transform: translateY(-8px) rotate(2deg); }
+}
+@keyframes splashLogoGlow {
+    from { filter: drop-shadow(0 0 15px rgba(0, 255, 136, 0.6))
+                  drop-shadow(0 0 30px rgba(0, 255, 136, 0.3)); }
+    to   { filter: drop-shadow(0 0 30px rgba(0, 255, 136, 1))
+                  drop-shadow(0 0 60px rgba(0, 255, 136, 0.7))
+                  drop-shadow(0 0 90px rgba(0, 212, 255, 0.4)); }
+}
+.splash-svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.splash-title {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 8px;
+    font-family: var(--font-mono);
+    font-weight: 900;
+    letter-spacing: 8px;
+    font-size: 28px;
+}
+.splash-title span {
+    color: var(--neon-green);
+    text-shadow:
+        0 0 8px var(--neon-green),
+        0 0 20px var(--neon-green),
+        0 0 40px rgba(0, 255, 136, 0.6),
+        3px 3px 0 #004422;
+    animation: splashTitlePulse 1.4s ease-in-out infinite alternate;
+}
+@keyframes splashTitlePulse {
+    from { text-shadow:
+        0 0 8px var(--neon-green),
+        0 0 20px var(--neon-green),
+        0 0 40px rgba(0, 255, 136, 0.6),
+        3px 3px 0 #004422; }
+    to { text-shadow:
+        0 0 12px var(--neon-green),
+        0 0 30px var(--neon-green),
+        0 0 60px var(--neon-green),
+        0 0 100px rgba(0, 255, 136, 0.7),
+        3px 3px 0 #004422; }
+}
+
+.splash-sub {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 6px;
+    color: rgba(0, 255, 136, 0.7);
+    margin-bottom: 40px;
+    text-shadow: 0 0 8px rgba(0, 255, 136, 0.8);
+}
+.splash-sub b {
+    color: var(--neon-green);
+    font-weight: 900;
+    animation: splashTitlePulse 1.4s ease-in-out infinite alternate;
+}
+
+.splash-progress {
+    width: 220px;
+    height: 6px;
+    background: rgba(0, 255, 136, 0.1);
+    border: 1px solid rgba(0, 255, 136, 0.4);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 24px;
+    box-shadow: 0 0 12px rgba(0, 255, 136, 0.3), inset 0 0 8px rgba(0, 0, 0, 0.6);
+}
+.splash-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #00ff88, #00d4ff, #00ff88);
+    background-size: 200% 100%;
+    border-radius: 3px;
+    animation: splashProgress 2s linear forwards,
+               splashProgressShimmer 1.2s linear infinite;
+    box-shadow: 0 0 12px rgba(0, 255, 136, 0.9);
+}
+@keyframes splashProgress {
+    from { width: 0%; }
+    to   { width: 100%; }
+}
+@keyframes splashProgressShimmer {
+    from { background-position: 0% 0; }
+    to   { background-position: -200% 0; }
+}
+
+.splash-hint {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: rgba(0, 255, 136, 0.4);
+    letter-spacing: 2px;
+    animation: splashHintBlink 1.4s ease-in-out infinite;
+    transition: color .3s, font-size .3s;
+}
+@keyframes splashHintBlink {
+    0%, 100% { opacity: 0.3; }
+    50%      { opacity: 0.8; }
+}
+
+/* Подсказка после загрузки — пульсирует ярче */
+.splash-hint.ready {
+    color: var(--neon-green);
+    font-size: 12px;
+    letter-spacing: 3px;
+    animation: splashHintReady 1s ease-in-out infinite alternate;
+}
+@keyframes splashHintReady {
+    from { opacity: 0.6; text-shadow: 0 0 6px rgba(0, 255, 136, 0.6); }
+    to   { opacity: 1;   text-shadow: 0 0 16px rgba(0, 255, 136, 1), 0 0 30px rgba(0, 255, 136, 0.7); }
+}
+
+.splash-particles {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+}
+.splash-particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--neon-green);
+    box-shadow: 0 0 8px var(--neon-green);
+    animation: splashParticleRise linear infinite;
+}
+@keyframes splashParticleRise {
+    from {
+        transform: translateY(0) scale(1);
+        opacity: 0;
+    }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    to {
+        transform: translateY(-100vh) scale(0.3);
+        opacity: 0;
+    }
+}
+
+@media (max-width: 500px) {
+    .splash-title { font-size: 22px; letter-spacing: 5px; }
+    .splash-sub { font-size: 10px; letter-spacing: 4px; margin-bottom: 30px; }
+    .splash-progress { width: 180px; }
+    .splash-logo { width: 80px; height: 96px; }
+}
 
 /* ============================================================
    НАВИГАЦИЯ
@@ -101,13 +334,44 @@ button { cursor: pointer; }
 }
 .tab-content { display: none; }
 .tab-content-active { display: block; }
-.grid-2 { display: flex; flex-direction: column; gap: var(--s-3); }
-@media (min-width: 900px) {
-    .grid-2 {
-        display: grid;
-        grid-template-columns: 340px 1fr;
-        align-items: start;
-    }
+
+/* ============================================================
+   АНИМАЦИИ ПЕРЕХОДА ВВОД ↔ РЕЦЕПТ
+   ============================================================ */
+#filling-input-view,
+#filling-recipe-view {
+    animation-duration: 0.4s;
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+    animation-fill-mode: both;
+}
+#filling-input-view.view-enter {
+    animation-name: viewSlideInLeft;
+}
+#filling-input-view.view-exit {
+    animation-name: viewSlideOutLeft;
+}
+#filling-recipe-view.view-enter {
+    animation-name: viewSlideInRight;
+}
+#filling-recipe-view.view-exit {
+    animation-name: viewSlideOutRight;
+}
+
+@keyframes viewSlideInRight {
+    from { opacity: 0; transform: translateX(40px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes viewSlideOutLeft {
+    from { opacity: 1; transform: translateX(0); }
+    to   { opacity: 0; transform: translateX(-40px); }
+}
+@keyframes viewSlideInLeft {
+    from { opacity: 0; transform: translateX(-40px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes viewSlideOutRight {
+    from { opacity: 1; transform: translateX(0); }
+    to   { opacity: 0; transform: translateX(40px); }
 }
 
 /* ============================================================
@@ -240,6 +504,131 @@ button { cursor: pointer; }
 }
 .disclaimer strong { color: var(--success); }
 .disclaimer em { color: #a7f3d0; font-style: normal; font-weight: 700; }
+
+/* ============================================================
+   КНОПКА ГЕНЕРАЦИИ РЕЦЕПТА
+   ============================================================ */
+.btn-row-generate {
+    margin-top: var(--s-2);
+    margin-bottom: var(--s-4);
+}
+.btn-generate {
+    font-size: 14px;
+    min-height: 54px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    background: linear-gradient(135deg, var(--neon-green) 0%, var(--accent) 100%) !important;
+    color: #000 !important;
+    box-shadow:
+        0 0 24px rgba(0, 255, 136, 0.4),
+        0 8px 20px rgba(0, 0, 0, 0.4);
+    position: relative;
+    overflow: hidden;
+    animation: btnGeneratePulse 2s ease-in-out infinite alternate;
+    transition: transform .15s, box-shadow .15s;
+}
+.btn-generate::before {
+    content: "";
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(120deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.5) 50%,
+        transparent 100%);
+    animation: btnGenerateShine 3s ease-in-out infinite;
+}
+.btn-generate:hover {
+    transform: translateY(-2px);
+    box-shadow:
+        0 0 36px rgba(0, 255, 136, 0.7),
+        0 12px 24px rgba(0, 0, 0, 0.5);
+}
+.btn-generate:active { transform: scale(0.97); }
+
+@keyframes btnGeneratePulse {
+    from { box-shadow: 0 0 20px rgba(0, 255, 136, 0.35), 0 8px 20px rgba(0, 0, 0, 0.4); }
+    to   { box-shadow: 0 0 40px rgba(0, 255, 136, 0.65), 0 8px 20px rgba(0, 0, 0, 0.4); }
+}
+@keyframes btnGenerateShine {
+    0%   { left: -100%; }
+    50%  { left: 100%; }
+    100% { left: 100%; }
+}
+
+/* ============================================================
+   ЭКРАН РЕЦЕПТА · ЗАГОЛОВОК И КНОПКИ
+   ============================================================ */
+.recipe-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-2);
+    padding: var(--s-3) var(--s-4);
+    background: linear-gradient(135deg, rgba(0, 255, 136, 0.08), rgba(0, 212, 255, 0.05));
+    border: 1px solid rgba(0, 255, 136, 0.3);
+    border-radius: var(--r);
+    margin-bottom: var(--s-3);
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.15);
+}
+.recipe-header-label {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: rgba(0, 255, 136, 0.7);
+    font-weight: 700;
+    margin-bottom: 2px;
+}
+.recipe-header-line {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--neon-green);
+    text-shadow: 0 0 8px rgba(0, 255, 136, 0.6);
+    letter-spacing: 0.03em;
+}
+
+.btn-back {
+    margin-bottom: var(--s-3);
+    font-size: 12px;
+    padding: 8px 14px;
+    text-align: left;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: transform .15s, background .15s;
+}
+.btn-back:hover {
+    background: var(--bg-2);
+    transform: translateX(-3px);
+}
+
+.btn-refresh {
+    flex-shrink: 0;
+    padding: 6px 10px !important;
+    font-size: 11px !important;
+    min-height: 32px !important;
+    text-transform: none;
+    letter-spacing: 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: transform .3s, background .15s;
+}
+.btn-refresh:hover {
+    background: var(--bg-2);
+}
+.btn-refresh.spinning {
+    animation: btnRefreshSpin 0.8s ease-in-out;
+}
+@keyframes btnRefreshSpin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+
+.recipe-actions .btn { flex: 1; }
 
 /* ============================================================
    ЭКРАН ПЛК
@@ -455,7 +844,6 @@ button { cursor: pointer; }
     border: 1px solid rgba(0, 224, 138, 0.35);
 }
 
-/* Подсказка рядом со значением задержки */
 .plc-delay-row { flex-wrap: wrap; gap: 6px; }
 .plc-delay-cell {
     display: flex;
@@ -1217,7 +1605,7 @@ button { cursor: pointer; }
 }
 
 /* ============================================================
-   ТРЕНАЖЁР · ПОДСКАЗКА ПОВЕРНУТЬ СМАРТФОН
+   ТРЕНАЖЁР · ПОДСКАЗКА ПОВЕРНУТЬ
    ============================================================ */
 .sim-rotate-hint {
     display: none;
@@ -1244,12 +1632,10 @@ button { cursor: pointer; }
     letter-spacing: 0.02em;
 }
 .sim-rotate-text span { font-size: 11.5px; color: var(--text-2); line-height: 1.4; }
-
 @keyframes simRotateIcon {
     0%, 100% { transform: rotate(0deg); }
     50%      { transform: rotate(-90deg); }
 }
-
 @media (orientation: portrait) and (max-width: 900px) {
     .sim-rotate-hint { display: flex; }
 }
@@ -2223,7 +2609,6 @@ button { cursor: pointer; }
 .sim-crush-bottle:nth-child(3) { animation-delay: 0.30s; }
 .sim-crush-bottle:nth-child(4) { animation-delay: 0.45s; }
 .sim-crush-bottle:nth-child(5) { animation-delay: 0.60s; }
-
 @keyframes simBottleCrush {
     0% { transform: scaleY(1) scaleX(1) rotate(0deg); opacity: 1; }
     30% { transform: scaleY(0.85) scaleX(1.3) rotate(-6deg); }
@@ -2232,7 +2617,7 @@ button { cursor: pointer; }
 }
 
 /* ============================================================
-   АДАПТИВНОСТЬ (ПОРТРЕТ)
+   АДАПТИВНОСТЬ
    ============================================================ */
 @media (max-width: 500px) {
     .plc-screen { grid-template-columns: 1fr; }
@@ -2277,13 +2662,16 @@ button { cursor: pointer; }
     .plc-delay-row { flex-direction: column; align-items: flex-start; }
     .plc-delay-cell { width: 100%; justify-content: space-between; margin-left: 0; }
     .plc-delay-tip { font-size: 10px; white-space: normal; text-align: right; max-width: 60%; }
+    .recipe-header { padding: var(--s-2) var(--s-3); }
+    .recipe-header-line { font-size: 12px; }
+    .btn-generate { font-size: 13px; min-height: 50px; }
 }
 @media (max-width: 380px) {
     .field-row { grid-template-columns: 1fr; }
 }
 
 /* ============================================================
-   ГОРИЗОНТАЛЬНАЯ ОРИЕНТАЦИЯ · ТРЕНАЖЁР · 2 КОЛОНКИ
+   ГОРИЗОНТАЛЬНАЯ ОРИЕНТАЦИЯ · ТРЕНАЖЁР
    ============================================================ */
 @media (orientation: landscape) and (max-height: 560px) {
     .sim-rotate-hint { display: none !important; }
