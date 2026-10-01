@@ -25,6 +25,14 @@
     --s-4: 16px; --s-5: 24px; --s-6: 32px;
     --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
     --font-mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+
+    /* Тренажёр · исходные данные (циан) */
+    --sim-data-title:      #00d4ff;
+    --sim-data-title-glow: rgba(0, 212, 255, 0.8);
+    --sim-data-label:      rgba(102, 227, 255, 0.75);
+    --sim-data-value:      #33ddff;
+    --sim-data-value-glow: rgba(0, 212, 255, 0.9);
+    --sim-data-border:     rgba(0, 212, 255, 0.35);
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -46,7 +54,7 @@ button { cursor: pointer; }
 .hidden { display: none !important; }
 
 /* ============================================================
-   ЗАСТАВКА ПРИ ЗАПУСКЕ (исчезает только по тапу)
+   ЗАСТАВКА ПРИ ЗАПУСКЕ
    ============================================================ */
 .splash-screen {
     position: fixed;
@@ -136,11 +144,7 @@ button { cursor: pointer; }
                   drop-shadow(0 0 60px rgba(0, 255, 136, 0.7))
                   drop-shadow(0 0 90px rgba(0, 212, 255, 0.4)); }
 }
-.splash-svg {
-    width: 100%;
-    height: 100%;
-    display: block;
-}
+.splash-svg { width: 100%; height: 100%; display: block; }
 
 .splash-title {
     display: flex;
@@ -229,8 +233,6 @@ button { cursor: pointer; }
     0%, 100% { opacity: 0.3; }
     50%      { opacity: 0.8; }
 }
-
-/* Подсказка после загрузки — пульсирует ярче */
 .splash-hint.ready {
     color: var(--neon-green);
     font-size: 12px;
@@ -258,16 +260,10 @@ button { cursor: pointer; }
     animation: splashParticleRise linear infinite;
 }
 @keyframes splashParticleRise {
-    from {
-        transform: translateY(0) scale(1);
-        opacity: 0;
-    }
+    from { transform: translateY(0) scale(1); opacity: 0; }
     10% { opacity: 1; }
     90% { opacity: 1; }
-    to {
-        transform: translateY(-100vh) scale(0.3);
-        opacity: 0;
-    }
+    to { transform: translateY(-100vh) scale(0.3); opacity: 0; }
 }
 
 @media (max-width: 500px) {
@@ -344,18 +340,10 @@ button { cursor: pointer; }
     animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
     animation-fill-mode: both;
 }
-#filling-input-view.view-enter {
-    animation-name: viewSlideInLeft;
-}
-#filling-input-view.view-exit {
-    animation-name: viewSlideOutLeft;
-}
-#filling-recipe-view.view-enter {
-    animation-name: viewSlideInRight;
-}
-#filling-recipe-view.view-exit {
-    animation-name: viewSlideOutRight;
-}
+#filling-input-view.view-enter { animation-name: viewSlideInLeft; }
+#filling-input-view.view-exit { animation-name: viewSlideOutLeft; }
+#filling-recipe-view.view-enter { animation-name: viewSlideInRight; }
+#filling-recipe-view.view-exit { animation-name: viewSlideOutRight; }
 
 @keyframes viewSlideInRight {
     from { opacity: 0; transform: translateX(40px); }
@@ -617,12 +605,8 @@ button { cursor: pointer; }
     gap: 4px;
     transition: transform .3s, background .15s;
 }
-.btn-refresh:hover {
-    background: var(--bg-2);
-}
-.btn-refresh.spinning {
-    animation: btnRefreshSpin 0.8s ease-in-out;
-}
+.btn-refresh:hover { background: var(--bg-2); }
+.btn-refresh.spinning { animation: btnRefreshSpin 0.8s ease-in-out; }
 @keyframes btnRefreshSpin {
     from { transform: rotate(0deg); }
     to   { transform: rotate(360deg); }
@@ -1421,6 +1405,128 @@ button { cursor: pointer; }
 }
 
 /* ============================================================
+   ИНЖЕНЕРНОЕ МЕНЮ · КАЛИБРОВКА РОЗЛИВА
+   ============================================================ */
+.eng-card-pump {
+    border-color: rgba(0, 255, 136, 0.35);
+    background: linear-gradient(135deg, rgba(0, 255, 136, 0.04), var(--bg-2));
+}
+.eng-card-pump h3 {
+    color: var(--neon-green);
+    text-shadow: 0 0 8px rgba(0, 255, 136, 0.4);
+}
+.eng-pump-desc {
+    font-size: 11.5px;
+    color: var(--text-2);
+    line-height: 1.5;
+    margin-bottom: var(--s-3);
+    padding: var(--s-2);
+    background: rgba(0, 0, 0, 0.25);
+    border-left: 3px solid var(--neon-green);
+    border-radius: 4px;
+}
+.eng-pump-desc b { color: var(--neon-green); font-family: var(--font-mono); }
+.eng-pump-sub {
+    font-size: 10.5px;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: var(--s-3) 0 var(--s-2);
+    font-weight: 700;
+}
+.eng-inputs-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin-bottom: var(--s-2);
+}
+.eng-inputs-row > div { display: flex; flex-direction: column; }
+.eng-inputs-row label {
+    font-size: 10px;
+    color: var(--text-3);
+    margin-bottom: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+.eng-inputs-row input,
+.eng-inputs-row select {
+    width: 100%;
+    padding: 7px;
+    background: var(--bg-0);
+    border: 1px solid var(--border-1);
+    border-radius: 4px;
+    color: var(--accent-text);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    text-align: center;
+}
+.eng-inputs-row input:focus,
+.eng-inputs-row select:focus { outline: none; border-color: var(--neon-green); }
+.eng-table-pump th {
+    font-size: 10px;
+    color: var(--text-3);
+    text-align: center;
+    padding: 4px 3px;
+}
+.eng-table-pump td {
+    padding: 3px;
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-2);
+}
+.eng-table-pump td:first-child {
+    text-align: left;
+    font-family: var(--font-ui);
+    color: var(--text-1);
+    white-space: nowrap;
+}
+.eng-table-pump input {
+    width: 100%;
+    padding: 5px;
+    background: var(--bg-0);
+    border: 1px solid var(--border-1);
+    border-radius: 4px;
+    color: var(--neon-green);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    text-align: center;
+}
+.eng-pump-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: var(--s-3) 0 var(--s-2);
+}
+.eng-pump-actions .btn { min-height: 36px; font-size: 11px; }
+.eng-fit-pump {
+    font-size: 11.5px;
+    line-height: 1.6;
+    white-space: pre-line;
+    color: var(--neon-green);
+    padding: var(--s-2) 0 var(--s-1);
+}
+.eng-fit-pump.warn { color: var(--warning); }
+.eng-status-pump {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    margin-top: var(--s-1);
+}
+.eng-status-pump.ok {
+    background: rgba(0, 224, 138, 0.12);
+    color: var(--success);
+    border: 1px solid rgba(0, 224, 138, 0.4);
+}
+.eng-status-pump.warn {
+    background: rgba(255, 176, 32, 0.10);
+    color: var(--warning);
+    border: 1px solid rgba(255, 176, 32, 0.35);
+}
+
+/* ============================================================
    ВЫПАДАЮЩЕЕ МЕНЮ ЭКСПОРТА
    ============================================================ */
 .dropdown { position: relative; }
@@ -1966,6 +2072,45 @@ button { cursor: pointer; }
 }
 .sim-product-list span { color: rgba(0, 255, 68, 0.55); font-size: 11px; }
 .sim-product-list b { color: #00ff44; text-shadow: 0 0 4px rgba(0, 255, 68, 0.6); font-weight: 800; }
+
+/* === ИСХОДНЫЕ ДАННЫЕ — ЦИАН === */
+.sim-product-card .sim-screen-title {
+    color: var(--sim-data-title);
+    text-shadow:
+        0 0 6px var(--sim-data-title-glow),
+        0 0 14px rgba(0, 212, 255, 0.5);
+    border-bottom-color: rgba(0, 212, 255, 0.4);
+}
+.sim-product-card .sim-product-list span { color: var(--sim-data-label); }
+.sim-product-card .sim-product-list b {
+    color: var(--sim-data-value);
+    text-shadow:
+        0 0 5px var(--sim-data-value-glow),
+        0 0 12px rgba(0, 212, 255, 0.5);
+}
+.sim-product-card { position: relative; }
+.sim-product-card::before {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border-radius: 6px;
+    border: 1px solid var(--sim-data-border);
+    pointer-events: none;
+    z-index: 4;
+    animation: simProductCardPulse 2.5s ease-in-out infinite;
+}
+@keyframes simProductCardPulse {
+    0%, 100% {
+        box-shadow:
+            inset 0 0 16px rgba(0, 212, 255, 0.08),
+            0 0 14px rgba(0, 212, 255, 0.15);
+    }
+    50% {
+        box-shadow:
+            inset 0 0 26px rgba(0, 212, 255, 0.18),
+            0 0 26px rgba(0, 212, 255, 0.32);
+    }
+}
 
 .sim-inputs { display: flex; flex-direction: column; gap: 6px; }
 .sim-input-row {
@@ -2567,7 +2712,6 @@ button { cursor: pointer; }
     z-index: 1;
 }
 .sim-crush-anim.hidden { display: none; }
-
 .sim-crush-bottle {
     width: 38px;
     height: 90px;
@@ -2614,6 +2758,60 @@ button { cursor: pointer; }
     30% { transform: scaleY(0.85) scaleX(1.3) rotate(-6deg); }
     60% { transform: scaleY(0.55) scaleX(1.8) rotate(10deg); opacity: 0.85; }
     100% { transform: scaleY(0.3) scaleX(2.2) rotate(-15deg); opacity: 0; }
+}
+
+/* ============================================================
+   МАТРИЧНАЯ АНИМАЦИЯ ГЕНЕРАЦИИ РЕЦЕПТА
+   ============================================================ */
+.matrix-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 30000;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    background: rgba(0, 0, 0, 0.92);
+}
+.matrix-overlay.active { opacity: 1; }
+.matrix-overlay.fade-out { opacity: 0; }
+
+.matrix-status {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 30001;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--neon-green);
+    text-shadow:
+        0 0 8px var(--neon-green),
+        0 0 20px rgba(0, 255, 136, 0.6);
+    letter-spacing: 0.1em;
+    text-align: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+    white-space: pre-line;
+    line-height: 1.8;
+    padding: 0 20px;
+}
+.matrix-status.active { opacity: 1; }
+.matrix-status b {
+    color: #ffffff;
+    font-weight: 900;
+    text-shadow: 0 0 12px #ffffff, 0 0 24px var(--neon-green);
+}
+.matrix-status .dots::after {
+    content: '';
+    animation: matrixDots 1s steps(4) infinite;
+}
+@keyframes matrixDots {
+    0%   { content: ''; }
+    25%  { content: '.'; }
+    50%  { content: '..'; }
+    75%  { content: '...'; }
+    100% { content: ''; }
 }
 
 /* ============================================================
@@ -2665,6 +2863,8 @@ button { cursor: pointer; }
     .recipe-header { padding: var(--s-2) var(--s-3); }
     .recipe-header-line { font-size: 12px; }
     .btn-generate { font-size: 13px; min-height: 50px; }
+    .eng-inputs-row { grid-template-columns: 1fr 1fr; }
+    .eng-inputs-row > div:nth-child(3) { grid-column: span 2; }
 }
 @media (max-width: 380px) {
     .field-row { grid-template-columns: 1fr; }
@@ -2750,6 +2950,14 @@ button { cursor: pointer; }
     .sim-inputs-block::-webkit-scrollbar-thumb {
         background: rgba(0, 255, 68, 0.4);
         border-radius: 2px;
+    }
+
+    .sim-product-card::before {
+        animation: none;
+        box-shadow: inset 0 0 12px rgba(0, 212, 255, 0.10);
+    }
+    .sim-product-card .sim-product-list b {
+        text-shadow: 0 0 3px var(--sim-data-value-glow);
     }
 
     .btn-row { margin-top: 5px; gap: 5px; }
