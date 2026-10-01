@@ -33,6 +33,28 @@ function getLineVolumeWarning(line, volume) {
 }
 
 // ============================================================
+// ПАСПОРТ НАСОСА (калибровка розлива)
+// ============================================================
+const PUMP_PASSPORT_KEY = 'line-assistant-pump-passport';
+
+let pumpPassports = {};
+
+function loadPumpPassports() {
+    try { pumpPassports = JSON.parse(localStorage.getItem(PUMP_PASSPORT_KEY)) || {}; }
+    catch { pumpPassports = {}; }
+}
+function savePumpPassports() {
+    try { localStorage.setItem(PUMP_PASSPORT_KEY, JSON.stringify(pumpPassports)); }
+    catch { alert('Не удалось сохранить паспорт насоса.'); }
+}
+function getPassportForLine(line) {
+    return pumpPassports[line] || null;
+}
+
+// Экспоненты D⁴-зависимости по ступеням
+const PUMP_D_EXPONENT = { stage1: 1, stage2: 4, stage3: 1 };
+
+// ============================================================
 // 1. ЗАСТАВКА ПРИ ЗАПУСКЕ
 // ============================================================
 
@@ -40,15 +62,12 @@ function dismissSplash() {
     const splash = document.getElementById('splash-screen');
     if (!splash || splash.classList.contains('fade-out')) return;
     splash.classList.add('fade-out');
-    setTimeout(() => {
-        splash.classList.add('hidden');
-    }, 650);
+    setTimeout(() => splash.classList.add('hidden'), 650);
     if (navigator.vibrate) navigator.vibrate(30);
     simPlaySound('win');
 }
 
 function initSplash() {
-    // Частицы
     const container = document.getElementById('splash-particles');
     if (container) {
         for (let i = 0; i < 20; i++) {
@@ -65,8 +84,6 @@ function initSplash() {
             container.appendChild(p);
         }
     }
-
-    // Через 2 секунды прогресс-бар заканчивается — меняем подсказку
     setTimeout(() => {
         const hint = document.getElementById('splash-hint');
         if (hint) {
@@ -80,25 +97,47 @@ function initSplash() {
 // 2. ПЕРЕКЛЮЧЕНИЕ ВВОД ↔ РЕЦЕПТ
 // ============================================================
 
-function generateRecipeView() {
-    // Считаем
-    runUniversalCalculation();
-
-    // Проверяем соответствие линии и объёма
+async function generateRecipeView() {
     const line = document.getElementById('lineSelect').value;
-    const vol = parseFloat(document.getElementById('bottleVolumeInput').value);
-    if (!isVolumeAllowedForLine(line, vol)) {
-        if (!confirm(`${getLineVolumeWarning(line, vol)}\n\nПродолжить?`)) return;
+    const V_total = parseFloat(document.getElementById('bottleVolumeInput').value) || 0;
+    const mu_target = parseFloat(document.getElementById('viscosityInput').value) || 0;
+
+    const passport = getPassportForLine(line);
+
+    // Базовая валидация линии и объёма
+    if (!isVolumeAllowedForLine(line, V_total)) {
+        if (!confirm(`${getLineVolumeWarning(line, V_total)}\n\nПродолжить?`)) return;
     }
 
-    // Обновляем заголовок рецепта
+    // Если паспорт есть — генерируем по физической модели
+    if (passport) {
+        const result = computeRecipeByPhysics(passport, V_total, mu_target);
+        if (!result.ok) {
+            alert(result.error);
+            return;
+        }
+        // Матричная анимация перед переключением
+        await generateRecipeWithMatrix();
+        applyPhysicsRecipeToPLC(result, passport);
+    } else {
+        // Fallback — старая модель
+        runUniversalCalculation();
+        const warnEl = document.getElementById('viscosityNotice');
+        if (warnEl) {
+            warnEl.style.display = 'block';
+            warnEl.textContent = '⚠️ Линия не откалибрована по физической модели. Используется приблизительный расчёт. Обратитесь к инженеру.';
+        }
+        // Матричная анимация перед переключением
+        await generateRecipeWithMatrix();
+    }
+
+    // Обновляем заголовок
     const headerLine = document.getElementById('recipe-header-line');
     if (headerLine) {
-        const lineText = document.getElementById('lineSelect').selectedOptions[0].textContent;
-        headerLine.textContent = lineText;
+        headerLine.textContent = document.getElementById('lineSelect').selectedOptions[0].textContent;
     }
 
-    // Прячем ввод, показываем рецепт с анимацией
+    // Переключаем экраны с анимацией
     const inputView = document.getElementById('filling-input-view');
     const recipeView = document.getElementById('filling-recipe-view');
 
@@ -129,40 +168,139 @@ function backToInputView() {
 }
 
 function refreshRecipe() {
-    // Показываем анимацию кнопки
     const btn = document.getElementById('btn-refresh');
     if (btn) {
         btn.classList.add('spinning');
         setTimeout(() => btn.classList.remove('spinning'), 800);
     }
-
-    // Пересчитываем
     runUniversalCalculation();
-
-    // Обновляем заголовок
     const headerLine = document.getElementById('recipe-header-line');
     if (headerLine) {
-        const lineText = document.getElementById('lineSelect').selectedOptions[0].textContent;
-        headerLine.textContent = lineText;
+        headerLine.textContent = document.getElementById('lineSelect').selectedOptions[0].textContent;
     }
-
-    // Пульс-эффект по экрану ПЛК
     const plc = document.querySelector('.plc');
     if (plc) {
         plc.style.transition = 'box-shadow 0.4s';
         plc.style.boxShadow = '0 0 30px rgba(0, 255, 136, 0.5)';
-        setTimeout(() => {
-            plc.style.boxShadow = '';
-        }, 500);
+        setTimeout(() => { plc.style.boxShadow = ''; }, 500);
     }
 }
 
-function shareCurrentRecipe() {
-    shareSendParams();
+function shareCurrentRecipe() { shareSendParams(); }
+
+// ============================================================
+// 3. ФИЗИЧЕСКАЯ МОДЕЛЬ ГЕНЕРАЦИИ РЕЦЕПТА
+// ============================================================
+
+function computeRecipeByPhysics(passport, V_total, mu_target) {
+    const { K_base, Hz_calib, V_calib, n_calib, D_calib, mu_calib } = passport;
+
+    const D_current = parseFloat(document.getElementById('nozzleDiameterInput')?.value) || 21;
+    const n_current = parseInt(document.getElementById('nozzleCountInput')?.value) || 10;
+
+    if (mu_target <= 0) return { ok: false, error: 'Вязкость должна быть больше нуля.' };
+    if (n_current < 1) return { ok: false, error: 'Количество сопел должно быть ≥ 1.' };
+    if (n_current > n_calib) {
+        return {
+            ok: false,
+            error: `Количество сопел (${n_current}) больше, чем при калибровке (${n_calib}).\n\nПерекалибруйте линию.`
+        };
+    }
+
+    // Пропорции фаз — из калибровки
+    const V_calib_total = V_calib[0] + V_calib[1] + V_calib[2];
+    const proportions = V_calib.map(v => v / V_calib_total);
+    const V_phases = proportions.map(p => Math.round(p * V_total));
+
+    // Индексы компенсации по ступеням
+    const muRatio = mu_target / mu_calib;
+    const dRatio = D_calib / D_current;
+    const nRatio = n_calib / n_current;
+
+    const index1 = muRatio * Math.pow(dRatio, PUMP_D_EXPONENT.stage1) * nRatio;
+    const index2 = muRatio * Math.pow(dRatio, PUMP_D_EXPONENT.stage2) * nRatio;
+    const index3 = muRatio * Math.pow(dRatio, PUMP_D_EXPONENT.stage3) * nRatio;
+
+    // Компенсированные частоты
+    const Hz1 = Hz_calib[0] * index1;
+    const Hz2 = Hz_calib[1] * index2;
+    const Hz3 = Hz_calib[2] * index3;
+
+    // Защита ПЛК
+    const LIMIT_HZ = 80;
+    const MIN_HZ = 15;
+
+    if (Hz2 > LIMIT_HZ) {
+        const reasons = [];
+        if (mu_target > mu_calib * 1.5) reasons.push(`продукт слишком вязкий (${mu_target} ед.)`);
+        if (D_current < D_calib)       reasons.push(`сопла узкие (${D_current} мм вместо ${D_calib} мм)`);
+        if (n_current < n_calib)       reasons.push(`сопел меньше (${n_current} из ${n_calib})`);
+
+        const reasonText = reasons.length ? reasons.join(', ') : 'комбинация параметров';
+
+        return {
+            ok: false,
+            error:
+                `🚫 КРИТИЧЕСКОЕ ДАВЛЕНИЕ!\n\n` +
+                `Требуемая частота 2-й ступени: ${Hz2.toFixed(1)} Гц (лимит ПЛК: ${LIMIT_HZ} Гц).\n\n` +
+                `Причины: ${reasonText}.\n\n` +
+                `Решения:\n` +
+                `• Заменить сопла на более широкие (${D_calib} мм)\n` +
+                `• Вернуть снятые сопла (до ${n_calib} шт)\n` +
+                `• Использовать менее вязкий продукт`
+        };
+    }
+
+    const warnings = [];
+    if (Hz1 < MIN_HZ) warnings.push(`Частота 1-й ступени ${Hz1.toFixed(1)} Гц < ${MIN_HZ} Гц — нестабильный поток.`);
+    if (Hz3 < MIN_HZ) warnings.push(`Частота 3-й ступени ${Hz3.toFixed(1)} Гц < ${MIN_HZ} Гц — нестабильный долив.`);
+    if (n_current < n_calib) warnings.push(`⚠️ Работает ${n_current} из ${n_calib} сопел — темп линии снижен. Компенсация частотой применена.`);
+
+    return {
+        ok: true,
+        V_phases,
+        Hz: [Hz1, Hz2, Hz3],
+        index: [index1, index2, index3],
+        warning: warnings.length ? warnings.join('\n') : ''
+    };
+}
+
+function applyPhysicsRecipeToPLC(result, passport) {
+    const { V_phases, Hz } = result;
+
+    runUniversalCalculation();
+
+    const speed1 = Hz[0];
+    const speed2 = Hz[1];
+    const speed3 = Hz[2];
+    const visc = parseFloat(document.getElementById('viscosityInput').value) || 0;
+
+    const speed2Display = visc > 1000
+        ? `(ВЕРХН.) ${(speed2 * 0.88).toFixed(2)}  (ДОН.) ${speed2.toFixed(2)}`
+        : speed2.toFixed(2);
+
+    const trans2 = V_phases[0];
+    const trans3 = V_phases[0] + V_phases[1];
+
+    document.getElementById('val_pump_speed_1').textContent = speed1.toFixed(2);
+    document.getElementById('val_pump_speed_2').textContent = speed2Display;
+    document.getElementById('val_pump_speed_3').textContent = speed3.toFixed(2);
+    document.getElementById('val_trans_volume_2').textContent = trans2;
+    document.getElementById('val_trans_volume_3').textContent = trans3;
+
+    const headerLine = document.getElementById('recipe-header-line');
+    if (headerLine) {
+        const lineText = document.getElementById('lineSelect').selectedOptions[0].textContent;
+        headerLine.innerHTML = `${lineText} <span style="color:#00ff88;font-size:10px;opacity:0.8;">⚛ физическая модель</span>`;
+    }
+
+    if (result.warning) {
+        setTimeout(() => alert(result.warning), 400);
+    }
 }
 
 // ============================================================
-// 3. ОСНОВНОЙ РАСЧЁТ ДЛЯ НАЛИВА
+// 4. ОСНОВНОЙ РАСЧЁТ ДЛЯ НАЛИВА
 // ============================================================
 
 function runUniversalCalculation() {
@@ -184,7 +322,6 @@ function runUniversalCalculation() {
 
     if (bottleHeight <= 0 || bottleVol <= 0 || targetWeight <= 0 || visc < 0 || density <= 0) return;
 
-    // Проверка соответствия линии и объёма
     const volumeWarnEl = document.getElementById('lineVolumeWarning');
     if (volumeWarnEl) {
         const warning = getLineVolumeWarning(line, bottleVol);
@@ -332,7 +469,6 @@ function runUniversalCalculation() {
     speed3 = Math.min(speed3, 100.00);
     ls1 = Math.min(ls1, 100); ls2 = Math.min(ls2, 100); ls3 = Math.min(ls3, 100);
 
-    // Минимально безопасная задержка подъёма по вязкости
     const delayMinSafe = visc < 800 ? 3.0 - (visc / 800) * 1.5 : 1.5;
     if (delay < delayMinSafe) delay = parseFloat(delayMinSafe.toFixed(1));
 
@@ -384,7 +520,7 @@ function runUniversalCalculation() {
 }
 
 // ============================================================
-// 4. ЛОГИКА ВКЛАДОК
+// 5. ЛОГИКА ВКЛАДОК
 // ============================================================
 
 function switchTab(tabName) {
@@ -397,7 +533,7 @@ function switchTab(tabName) {
 }
 
 // ============================================================
-// 5. КАЛЬКУЛЯТОР ЭТИКЕТОВЩИКА
+// 6. КАЛЬКУЛЯТОР ЭТИКЕТОВЩИКА
 // ============================================================
 
 const LABELER_DEFAULTS_LINE_1_1 = {
@@ -440,13 +576,11 @@ function initEngStorage() {
 }
 
 function getCoeffsForLine(line) { return labelerCoeffs[line]; }
-
 function getUsableCoeffs(line) {
     const c = labelerCoeffs[line];
     if (!c) return null;
     return ['conveyor','press','roller'].every(d => c[d].a > 0 && c[d].maxHz > 0) ? c : null;
 }
-
 function takeEngSnapshot() { engSnapshot = JSON.stringify(labelerCoeffs); }
 function isEngDirty() { return engSnapshot !== null && JSON.stringify(labelerCoeffs) !== engSnapshot; }
 
@@ -520,7 +654,7 @@ function resetLabelerForm() {
 }
 
 // ============================================================
-// 6. УГОЛ НОЖА
+// 7. УГОЛ НОЖА
 // ============================================================
 
 function updateKnifeInstructions() {
@@ -572,7 +706,6 @@ function updateKnifeInstructions() {
 }
 
 function checkKnifeAngles() { updateKnifeInstructions(); }
-
 function resetKnifeForm() {
     document.getElementById('knife-bottle-type').value = 'flat';
     document.getElementById('knife-wall-angle').value = '0.0';
@@ -581,7 +714,7 @@ function resetKnifeForm() {
 }
 
 // ============================================================
-// 7. УКУПОР
+// 8. УКУПОР
 // ============================================================
 
 let selectedCapType = 'cap';
@@ -699,7 +832,7 @@ function resetCappingForm() {
 }
 
 // ============================================================
-// 8. ОТПРАВКА В ПЛК + МЕССЕНДЖЕР
+// 9. ОТПРАВКА В ПЛК + МЕССЕНДЖЕР
 // ============================================================
 
 function openSendModal() { renderSendParams(); document.getElementById('send-modal-overlay').classList.remove('hidden'); }
@@ -821,7 +954,7 @@ function simBuildRecipeText() {
 }
 
 // ============================================================
-// 9. ПОДЕЛИТЬСЯ ССЫЛКОЙ
+// 10. ПОДЕЛИТЬСЯ ССЫЛКОЙ
 // ============================================================
 
 function shareApp() {
@@ -835,7 +968,7 @@ function shareApp() {
 }
 
 // ============================================================
-// 10. ЖУРНАЛ НАЛАДОК
+// 11. ЖУРНАЛ НАЛАДОК
 // ============================================================
 
 const JOURNAL_KEY = 'line-assistant-journal';
@@ -861,6 +994,8 @@ function saveCurrentToJournal() {
     const targetWeight = parseFloat(document.getElementById('targetWeightInput').value) || 0;
     const density = parseFloat(document.getElementById('densityInput').value) || 1.0;
     const viscosity = parseFloat(document.getElementById('viscosityInput').value) || 0;
+    const nozzleDiameter = parseFloat(document.getElementById('nozzleDiameterInput').value) || 21;
+    const nozzleCount = parseInt(document.getElementById('nozzleCountInput').value) || 10;
 
     if (bottleHeight <= 0 || targetWeight <= 0) { alert('Заполните высоту флакона и целевой вес.'); return; }
 
@@ -872,7 +1007,8 @@ function saveCurrentToJournal() {
         timestamp: new Date().toLocaleString('ru-RU', {
             day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
         }),
-        line, lineName, bottleHeight, bottleVolume, targetWeight, density, fillVolume, viscosity, delay
+        line, lineName, bottleHeight, bottleVolume, targetWeight, density, fillVolume, viscosity, delay,
+        nozzleDiameter, nozzleCount
     };
 
     journal.unshift(entry);
@@ -903,6 +1039,7 @@ function renderJournal() {
                 <div><span>Объём заполн.</span><b>${e.fillVolume.toFixed(1)} мл</b></div>
                 <div><span>Вязкость</span><b>${e.viscosity} ед.</b></div>
                 <div><span>Высота</span><b>${e.bottleHeight} мм</b></div>
+                <div><span>Сопла</span><b>${e.nozzleCount || 10} шт × ${e.nozzleDiameter || 21} мм</b></div>
             </div>
             <div class="journal-entry-footer">
                 <button class="btn btn-ghost btn-sm" onclick="restoreJournalEntry('${e.id}')">↩ Загрузить в форму</button>
@@ -925,8 +1062,9 @@ function restoreJournalEntry(id) {
     document.getElementById('targetWeightInput').value = e.targetWeight;
     document.getElementById('densityInput').value = e.density;
     document.getElementById('viscosityInput').value = e.viscosity;
+    if (e.nozzleDiameter) document.getElementById('nozzleDiameterInput').value = e.nozzleDiameter;
+    if (e.nozzleCount) document.getElementById('nozzleCountInput').value = e.nozzleCount;
     closeJournal(); switchTab('filling'); runUniversalCalculation();
-    // Возвращаемся на экран ввода
     const inputView = document.getElementById('filling-input-view');
     const recipeView = document.getElementById('filling-recipe-view');
     if (inputView) inputView.classList.remove('hidden');
@@ -950,7 +1088,7 @@ function exportJournal() {
 }
 
 // ============================================================
-// 11. ИНЖЕНЕРНОЕ МЕНЮ
+// 12. ИНЖЕНЕРНОЕ МЕНЮ
 // ============================================================
 
 function openEngMenu() {
@@ -1048,6 +1186,8 @@ function loadEngLine() {
     if (calStatuses.length === 3) { badge.textContent = `✅ Откалибровано: ${calStatuses[0]}`; badge.style.color = '#00e08a'; }
     else if (line === 'LINE_1_1') { badge.textContent = '⚙️ Заводские значения (линия 1.1)'; badge.style.color = '#00d4ff'; }
     else { badge.textContent = '⚠️ Не откалибровано'; badge.style.color = '#ffb020'; }
+
+    loadPumpPassportToForm(line);
 }
 
 function renderEngRows(drive, points) {
@@ -1234,7 +1374,103 @@ function importEngCoeffs() {
 }
 
 // ============================================================
-// 12. PIN И ПОДТВЕРЖДЕНИЯ
+// 13. КАЛИБРОВКА РОЗЛИВА · РАСЧЁТ ПАСПОРТА
+// ============================================================
+
+function calcPumpPassport() {
+    const n  = parseFloat(document.getElementById('pump-n-calib').value) || 0;
+    const D  = parseFloat(document.getElementById('pump-d-calib').value) || 0;
+    const mu = parseFloat(document.getElementById('pump-mu-calib').value) || 0;
+
+    const V  = [1,2,3].map(i => parseFloat(document.getElementById(`pump-v${i}`).value) || 0);
+    const Hz = [1,2,3].map(i => parseFloat(document.getElementById(`pump-hz${i}`).value) || 0);
+    const t  = [1,2,3].map(i => parseFloat(document.getElementById(`pump-t${i}`).value) || 0);
+
+    const fitEl = document.getElementById('pump-fit');
+    const statusEl = document.getElementById('pump-status');
+    fitEl.classList.remove('warn');
+
+    if (n < 1) { fitEl.textContent = '❌ Укажите количество сопел'; fitEl.classList.add('warn'); return; }
+    if (D <= 0) { fitEl.textContent = '❌ Укажите диаметр сопел'; fitEl.classList.add('warn'); return; }
+    if (mu <= 0) { fitEl.textContent = '❌ Укажите вязкость тест-продукта'; fitEl.classList.add('warn'); return; }
+    for (let i = 0; i < 3; i++) {
+        if (V[i] <= 0 || Hz[i] <= 0 || t[i] <= 0) {
+            fitEl.textContent = `❌ Ступень ${i+1}: все поля должны быть > 0`;
+            fitEl.classList.add('warn');
+            return;
+        }
+    }
+
+    const Q_real = V.map((v, i) => (v * n) / t[i]);
+    const K_base = Q_real.map((q, i) => q / Hz[i]);
+
+    const tooSmall = K_base.some(k => k <= 0);
+    if (tooSmall) { fitEl.textContent = '❌ Некорректные данные'; fitEl.classList.add('warn'); return; }
+
+    const stageNames = ['Ступень 1', 'Ступень 2', 'Ступень 3'];
+    let text = '';
+    for (let i = 0; i < 3; i++) {
+        text += `${stageNames[i]}:\n`;
+        text += `  Q_real = ${Q_real[i].toFixed(1)} мл/с\n`;
+        text += `  K_base = ${K_base[i].toFixed(3)} мл/(с·Гц)\n`;
+        text += `  (при ${Hz[i]} Гц: ${V[i]} мл за ${t[i]} с)\n`;
+    }
+    text += `\nГеометрия: n=${n}, D=${D} мм, μ=${mu} ед.`;
+    fitEl.textContent = text;
+
+    window._pendingPumpPassport = {
+        K_base, Hz_calib: [...Hz], V_calib: [...V], t_calib: [...t],
+        n_calib: n, D_calib: D, mu_calib: mu
+    };
+    statusEl.textContent = '🧮 Рассчитано. Нажмите «Сохранить»';
+    statusEl.className = 'eng-status eng-status-pump';
+}
+
+function savePumpPassport() {
+    const line = document.getElementById('eng-line-select').value;
+    const data = window._pendingPumpPassport;
+    if (!data) { alert('Сначала нажмите «Рассчитать паспорт».'); return; }
+    if (!confirm(`Сохранить паспорт насоса для линии ${line.replace('LINE_', '')}?`)) return;
+
+    pumpPassports[line] = { ...data, calibrated: new Date().toISOString().slice(0, 10) };
+    savePumpPassports();
+
+    const statusEl = document.getElementById('pump-status');
+    statusEl.textContent = `✅ Сохранено: ${pumpPassports[line].calibrated}`;
+    statusEl.className = 'eng-status eng-status-pump ok';
+
+    window._pendingPumpPassport = null;
+    loadPumpPassportToForm(line);
+}
+
+function loadPumpPassportToForm(line) {
+    const p = pumpPassports[line];
+    const statusEl = document.getElementById('pump-status');
+    if (!statusEl) return;
+    if (!p) {
+        statusEl.textContent = 'Не откалибровано';
+        statusEl.className = 'eng-status eng-status-pump warn';
+        const fitEl = document.getElementById('pump-fit');
+        if (fitEl) fitEl.textContent = '—';
+        return;
+    }
+    document.getElementById('pump-mu-calib').value = p.mu_calib;
+    document.getElementById('pump-d-calib').value = p.D_calib;
+    document.getElementById('pump-n-calib').value = p.n_calib;
+    [1,2,3].forEach(i => {
+        document.getElementById(`pump-v${i}`).value  = p.V_calib[i-1];
+        document.getElementById(`pump-hz${i}`).value = p.Hz_calib[i-1];
+        document.getElementById(`pump-t${i}`).value  = p.t_calib[i-1];
+    });
+    statusEl.textContent = `✅ Калибровано: ${p.calibrated}`;
+    statusEl.className = 'eng-status eng-status-pump ok';
+
+    const fitEl = document.getElementById('pump-fit');
+    if (fitEl) fitEl.textContent = `K_base = [${p.K_base.map(k => k.toFixed(3)).join(', ')}] мл/(с·Гц)`;
+}
+
+// ============================================================
+// 14. PIN И ПОДТВЕРЖДЕНИЯ
 // ============================================================
 
 function askUnsavedChanges(text, onProceed) {
@@ -1282,7 +1518,7 @@ function submitPinChange() {
 }
 
 // ============================================================
-// 13. ДРОПДАУН ЭКСПОРТА
+// 15. ДРОПДАУН ЭКСПОРТА
 // ============================================================
 
 function toggleExportMenu(event) { event.stopPropagation(); document.getElementById('export-dropdown').classList.toggle('hidden'); }
@@ -1294,7 +1530,7 @@ document.addEventListener('click', (e) => {
 });
 
 // ============================================================
-// 14. ESC
+// 16. ESC
 // ============================================================
 
 document.addEventListener('keydown', (e) => {
@@ -1333,7 +1569,7 @@ window.addEventListener('beforeunload', (e) => {
 });
 
 // ============================================================
-// 15. ТРЕНАЖЁР НАЛИВА
+// 17. ТРЕНАЖЁР НАЛИВА
 // ============================================================
 
 const SIM_STORAGE_KEY      = 'line-assistant-sim-stats';
@@ -1409,36 +1645,12 @@ function simComputeDelayMin(visc) {
 }
 
 const SIM_ACCIDENTS = [
-    {
-        title: '⚠️ ПЕНА ПРИ НАЛИВЕ',
-        description: 'Смена жалуется на пену в флаконах. Проверьте 1-ю скорость насоса и скорости подъёма.',
-        hintFields: ['pump_speed_1', 'lift_speed_1', 'lift_speed_2']
-    },
-    {
-        title: '⚠️ НЕДОЛИВ',
-        description: 'Флаконы недолиты — не хватает по верхней кромке. Проверьте 3-ю скорость насоса и объёмы перехода.',
-        hintFields: ['pump_speed_3', 'trans_volume_3']
-    },
-    {
-        title: '⚠️ ПЕРЕЛИВ',
-        description: 'Продукт переливается через край. Проверьте 2-ю скорость насоса.',
-        hintFields: ['pump_speed_2', 'trans_volume_2']
-    },
-    {
-        title: '⚠️ ДОЛГИЙ ПОДЪЁМ',
-        description: 'Теряется такт линии — сопло слишком долго поднимается. Проверьте задержку подъёма.',
-        hintFields: ['delay', 'lift_speed_3']
-    },
-    {
-        title: '⚠️ НЕСТАБИЛЬНЫЙ ПОТОК',
-        description: 'Помпа пульсирует, поток неравномерный. Проверьте 3-ю скорость насоса.',
-        hintFields: ['pump_speed_3']
-    },
-    {
-        title: '⚠️ РАЗБРЫЗГИВАНИЕ',
-        description: 'Продукт разбрызгивается при наливе. Проверьте 1-ю скорость насоса.',
-        hintFields: ['pump_speed_1']
-    }
+    { title: '⚠️ ПЕНА ПРИ НАЛИВЕ', description: 'Смена жалуется на пену в флаконах. Проверьте 1-ю скорость насоса и скорости подъёма.', hintFields: ['pump_speed_1', 'lift_speed_1', 'lift_speed_2'] },
+    { title: '⚠️ НЕДОЛИВ', description: 'Флаконы недолиты — не хватает по верхней кромке. Проверьте 3-ю скорость насоса и объёмы перехода.', hintFields: ['pump_speed_3', 'trans_volume_3'] },
+    { title: '⚠️ ПЕРЕЛИВ', description: 'Продукт переливается через край. Проверьте 2-ю скорость насоса.', hintFields: ['pump_speed_2', 'trans_volume_2'] },
+    { title: '⚠️ ДОЛГИЙ ПОДЪЁМ', description: 'Теряется такт линии — сопло слишком долго поднимается. Проверьте задержку подъёма.', hintFields: ['delay', 'lift_speed_3'] },
+    { title: '⚠️ НЕСТАБИЛЬНЫЙ ПОТОК', description: 'Помпа пульсирует, поток неравномерный. Проверьте 3-ю скорость насоса.', hintFields: ['pump_speed_3'] },
+    { title: '⚠️ РАЗБРЫЗГИВАНИЕ', description: 'Продукт разбрызгивается при наливе. Проверьте 1-ю скорость насоса.', hintFields: ['pump_speed_1'] }
 ];
 
 let simState = { score: 0, streak: 0, wins: 0, attempts: 0, bestScore: 0 };
@@ -2322,7 +2534,6 @@ function simShowCalc() {
     document.getElementById('viscosityInput').value = prm.viscosity;
     runUniversalCalculation();
     switchTab('filling');
-    // Возвращаемся на экран ввода
     const inputView = document.getElementById('filling-input-view');
     const recipeView = document.getElementById('filling-recipe-view');
     if (inputView) inputView.classList.remove('hidden');
@@ -2404,7 +2615,7 @@ function simMPFinish() {
 }
 
 // ============================================================
-// 16. ЗВУКИ
+// 18. ЗВУКИ
 // ============================================================
 
 let simAudioCtx = null;
@@ -2453,7 +2664,203 @@ function simPlaySound(type) {
 }
 
 // ============================================================
-// 17. МОИ РЕЦЕПТЫ
+// 19. МАТРИЧНАЯ АНИМАЦИЯ ГЕНЕРАЦИИ РЕЦЕПТА
+// ============================================================
+
+const MATRIX_CHARS = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789ABCDEF<>/\\|=+-*';
+
+let matrixAnimationId = null;
+
+function startMatrixAnimation(durationMs = 1800) {
+    return new Promise((resolve) => {
+        const canvas = document.getElementById('matrix-overlay');
+        if (!canvas) { resolve(); return; }
+
+        const ctx = canvas.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
+
+        canvas.width = window.innerWidth * dpr;
+        canvas.height = window.innerHeight * dpr;
+        canvas.style.width = window.innerWidth + 'px';
+        canvas.style.height = window.innerHeight + 'px';
+        ctx.scale(dpr, dpr);
+
+        const W = window.innerWidth;
+        const H = window.innerHeight;
+        const fontSize = 16;
+        const columns = Math.floor(W / fontSize);
+        const drops = new Array(columns).fill(1).map(() => Math.random() * -30);
+
+        const status = document.createElement('div');
+        status.className = 'matrix-status';
+        status.id = 'matrix-status';
+        status.innerHTML = 'ГЕНЕРАЦИЯ РЕЦЕПТА<span class="dots"></span>';
+        document.body.appendChild(status);
+
+        canvas.classList.remove('hidden', 'fade-out');
+        canvas.classList.add('active');
+        setTimeout(() => status.classList.add('active'), 30);
+
+        const startTime = Date.now();
+
+        const messages = [
+            'ГЕНЕРАЦИЯ РЕЦЕПТА<span class="dots"></span>',
+            'РАСЧЁТ ПУАЗЕЙЛЯ<span class="dots"></span>',
+            'КОМПЕНСАЦИЯ ПРОСКАЛЬЗЫВАНИЯ<span class="dots"></span>',
+            'ПОДБОР ЧАСТОТ ПЛК<span class="dots"></span>',
+            'ПРОВЕРКА ГРАНИЦ 80 ГЦ<span class="dots"></span>',
+            'РЕЦЕПТ ГОТОВ <b>✓</b>'
+        ];
+        let msgIndex = 0;
+        const msgTimer = setInterval(() => {
+            if (msgIndex < messages.length - 1) {
+                msgIndex++;
+                status.innerHTML = messages[msgIndex];
+            }
+        }, Math.round(durationMs / messages.length));
+
+        function draw() {
+            const elapsed = Date.now() - startTime;
+
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
+            ctx.fillRect(0, 0, W, H);
+
+            ctx.font = `bold ${fontSize}px monospace`;
+            ctx.textBaseline = 'top';
+
+            for (let i = 0; i < drops.length; i++) {
+                const char = MATRIX_CHARS[Math.floor(Math.random() * MATRIX_CHARS.length)];
+                const x = i * fontSize;
+                const y = drops[i] * fontSize;
+
+                if (Math.random() > 0.85) {
+                    ctx.fillStyle = '#ffffff';
+                    ctx.shadowColor = '#00ff88';
+                    ctx.shadowBlur = 12;
+                } else {
+                    ctx.fillStyle = '#00ff88';
+                    ctx.shadowColor = '#00ff88';
+                    ctx.shadowBlur = 4;
+                }
+                ctx.fillText(char, x, y);
+                ctx.shadowBlur = 0;
+
+                if (y > H && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                drops[i]++;
+            }
+
+            if (elapsed < durationMs) {
+                matrixAnimationId = requestAnimationFrame(draw);
+            } else {
+                cancelAnimationFrame(matrixAnimationId);
+                clearInterval(msgTimer);
+                ctx.fillStyle = 'rgba(0, 255, 136, 0.15)';
+                ctx.fillRect(0, 0, W, H);
+
+                setTimeout(() => {
+                    canvas.classList.add('fade-out');
+                    status.classList.remove('active');
+                    setTimeout(() => {
+                        canvas.classList.add('hidden');
+                        canvas.classList.remove('active', 'fade-out');
+                        status.remove();
+                        resolve();
+                    }, 350);
+                }, 200);
+            }
+        }
+        draw();
+    });
+}
+
+// ============================================================
+// ЗВУК МАТРИЦЫ
+// ============================================================
+
+function playMatrixSound() {
+    try {
+        if (!simAudioCtx) simAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const ctx = simAudioCtx;
+        const now = ctx.currentTime;
+
+        // 1. Нарастающий низкий свип
+        const sweepOsc = ctx.createOscillator();
+        const sweepGain = ctx.createGain();
+        sweepOsc.type = 'sawtooth';
+        sweepOsc.frequency.setValueAtTime(80, now);
+        sweepOsc.frequency.exponentialRampToValueAtTime(520, now + 1.4);
+        sweepGain.gain.setValueAtTime(0, now);
+        sweepGain.gain.linearRampToValueAtTime(0.08, now + 0.1);
+        sweepGain.gain.exponentialRampToValueAtTime(0.001, now + 1.5);
+        sweepOsc.connect(sweepGain); sweepGain.connect(ctx.destination);
+        sweepOsc.start(now);
+        sweepOsc.stop(now + 1.6);
+
+        // 2. Серия цифровых бипов
+        const beepCount = 26;
+        for (let i = 0; i < beepCount; i++) {
+            const t = now + 0.15 + (i / beepCount) * 1.3;
+            const freq = 800 + Math.random() * 1800;
+            const dur = 0.035 + Math.random() * 0.05;
+
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(freq, t);
+            osc.frequency.exponentialRampToValueAtTime(freq * (0.7 + Math.random() * 0.6), t + dur);
+            gain.gain.setValueAtTime(0, t);
+            gain.gain.linearRampToValueAtTime(0.05 + Math.random() * 0.04, t + 0.005);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.start(t);
+            osc.stop(t + dur + 0.01);
+        }
+
+        // 3. Финальный аккорд
+        const chordTime = now + 1.55;
+        const chordFreqs = [523, 659, 784, 1046];
+        chordFreqs.forEach((f, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = i === 3 ? 'sawtooth' : 'sine';
+            osc.frequency.value = f;
+            gain.gain.setValueAtTime(0, chordTime + i * 0.04);
+            gain.gain.linearRampToValueAtTime(0.09, chordTime + i * 0.04 + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, chordTime + i * 0.04 + 0.9);
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.start(chordTime + i * 0.04);
+            osc.stop(chordTime + i * 0.04 + 1.0);
+        });
+
+        // 4. Итоговый звон
+        const bellTime = now + 1.85;
+        const bell = ctx.createOscillator();
+        const bellGain = ctx.createGain();
+        bell.type = 'triangle';
+        bell.frequency.setValueAtTime(1568, bellTime);
+        bell.frequency.exponentialRampToValueAtTime(2093, bellTime + 0.5);
+        bellGain.gain.setValueAtTime(0, bellTime);
+        bellGain.gain.linearRampToValueAtTime(0.06, bellTime + 0.02);
+        bellGain.gain.exponentialRampToValueAtTime(0.001, bellTime + 1.0);
+        bell.connect(bellGain); bellGain.connect(ctx.destination);
+        bell.start(bellTime);
+        bell.stop(bellTime + 1.0);
+
+        if (navigator.vibrate) navigator.vibrate([30, 20, 30, 20, 30, 40, 80]);
+    } catch (e) {
+        console.log('Matrix sound failed:', e);
+    }
+}
+
+async function generateRecipeWithMatrix() {
+    playMatrixSound();
+    await startMatrixAnimation(1800);
+}
+
+// ============================================================
+// 20. МОИ РЕЦЕПТЫ
 // ============================================================
 
 function openUserRecipes() {
@@ -2521,12 +2928,13 @@ function simInit() {
 }
 
 // ============================================================
-// 18. ИНИЦИАЛИЗАЦИЯ
+// 21. ИНИЦИАЛИЗАЦИЯ
 // ============================================================
 
 window.addEventListener('DOMContentLoaded', () => {
     initSplash();
     initEngStorage();
+    loadPumpPassports();
     loadJournal();
     simInit();
     runUniversalCalculation();
