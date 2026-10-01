@@ -101,6 +101,21 @@
                        oninput="runUniversalCalculation()">
             </div>
 
+            <div class="field-row">
+                <div class="field">
+                    <label for="nozzleDiameterInput">Диаметр сопел, мм</label>
+                    <select id="nozzleDiameterInput" onchange="runUniversalCalculation()">
+                        <option value="16">16 мм</option>
+                        <option value="21" selected>21 мм</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="nozzleCountInput">Количество сопел</label>
+                    <input id="nozzleCountInput" type="number" step="1" min="1" max="10" value="10"
+                           oninput="runUniversalCalculation()">
+                </div>
+            </div>
+
             <div id="lineVolumeWarning" class="alert alert-danger hidden" style="margin-top: 0; margin-bottom: 12px;"></div>
 
             <div class="field-row">
@@ -718,11 +733,10 @@
         <h2 class="card-title">💧 Вкладка «Налив»</h2>
         <h3 class="subsection-title">Как пользоваться</h3>
         <ul class="help-list">
-            <li>Вводите параметры: линия, объём, высота, плотность, вязкость.</li>
+            <li>Вводите параметры: линия, объём, высота, диаметр и количество сопел, плотность, вязкость.</li>
             <li>Нажмите <b>🎯 Сгенерировать рецепт</b> — приложение откроет полный экран ПЛК со всеми уставками.</li>
+            <li>Если линия откалибрована — рецепт рассчитывается по <b>физической модели</b> (Пуазейль + проскальзывание).</li>
             <li>На экране рецепта: <b>📌 Сохранить</b>, <b>📤 Отправить в ПЛК</b>, <b>📲 Поделиться в мессенджер</b>.</li>
-            <li>Кнопка <b>🔄 Обновить</b> пересчитывает без возврата к вводу.</li>
-            <li>Кнопка <b>◀ Изменить параметры</b> возвращает к вводу.</li>
         </ul>
         <h3 class="subsection-title">Соответствие линий и объёмов</h3>
         <ul class="help-list">
@@ -732,11 +746,6 @@
             <li><b>Линия 1.4</b> — только 5 л канистры.</li>
             <li><b>Линия 1.5</b> — до 1 л включительно.</li>
             <li><b>Линия 1.6</b> — 0.6 л, 1 л, 5 л.</li>
-        </ul>
-        <h3 class="subsection-title">Рекомендация по задержке подъёма</h3>
-        <ul class="help-list">
-            <li><b>Минимум по вязкости</b>: вода → 3.0 с, вязкость 800+ → 1.5 с.</li>
-            <li>Если сопла <b>слишком глубоко погружаются</b> — уменьшайте задержку <b>плавно по 0.2 с</b>.</li>
         </ul>
     </div>
 
@@ -776,9 +785,9 @@
         </ul>
         <h3 class="subsection-title">Уровни сложности</h3>
         <ul class="help-list">
-            <li><b>🌱 Новичок</b> — ±20%, 6 полей. В «Аварии»: 1–2 ошибки, 25–50%.</li>
-            <li><b>⚙ Оператор</b> — ±15%, 13 полей. В «Аварии»: 2–3 ошибки, 15–30%.</li>
-            <li><b>🔥 Мастер</b> — ±10%, 21 поле. В «Аварии»: 3–4 ошибки, 10–20%.</li>
+            <li><b>🌱 Новичок</b> — ±20%, 6 полей. В «Аварии»: 1–2 ошибки.</li>
+            <li><b>⚙ Оператор</b> — ±15%, 13 полей. В «Аварии»: 2–3 ошибки.</li>
+            <li><b>🔥 Мастер</b> — ±10%, 21 поле. В «Аварии»: 3–4 ошибки.</li>
         </ul>
         <h3 class="subsection-title">Критические ограничения ПЛК</h3>
         <ul class="help-list">
@@ -790,11 +799,19 @@
 
     <div class="card" id="help-eng">
         <h2 class="card-title">🔧 Инженерное меню</h2>
-        <p class="help-p">Вход — кнопка <b>⚙</b> в правом нижнем углу. Доступ защищён PIN-кодом.</p>
+        <p class="help-p">Вход — кнопка <b>⚙</b> в правом нижнем углу. Доступ защищён PIN-кодом (по умолчанию <b>2801</b>).</p>
         <h3 class="subsection-title">Калибровка этикетовщика</h3>
         <ul class="help-list">
             <li>Для каждой линии задайте <b>3–5 точек</b>: частота (Гц) → скорость (м/мин).</li>
             <li>Приложение строит линейную регрессию, показывает <b>R²</b>.</li>
+        </ul>
+        <h3 class="subsection-title">Калибровка розлива (Паспорт насоса)</h3>
+        <ul class="help-list">
+            <li>Указываете эталонный продукт (вязкость, диаметр и количество сопел).</li>
+            <li>Проводите тестовый розлив, списываете с ПЛК текущие уставки V и Гц.</li>
+            <li>Секундомером замеряете t1, t2, t3 для каждой ступени.</li>
+            <li>Приложение рассчитывает <b>K_base</b> — проводимость насоса (мл/(с·Гц)).</li>
+            <li>После калибровки рецепты генерируются по <b>физической модели Пуазейля</b>.</li>
         </ul>
         <h3 class="subsection-title">Экспорт и импорт</h3>
         <ul class="help-list">
@@ -811,10 +828,10 @@
     <div class="card" id="help-faq">
         <h2 class="card-title">❓ Частые вопросы</h2>
         <details class="faq-item"><summary>Почему рекомендуемые значения не совпадают с реальными?</summary><p>Приложение даёт <b>рекомендацию</b> по математической модели. Реальное поведение зависит от состояния механики, износа насоса, температуры.</p></details>
-        <details class="faq-item"><summary>Что делать, если приложение показывает «линия не откалибрована»?</summary><p>Обратиться к инженеру. Пока линия не откалибрована, расчёт идёт по коэффициентам линии 1.1.</p></details>
+        <details class="faq-item"><summary>Что делать, если приложение показывает «линия не откалибрована»?</summary><p>Обратиться к инженеру. Пока линия не откалибрована, расчёт идёт по приблизительной модели.</p></details>
         <details class="faq-item"><summary>Работает ли приложение без интернета?</summary><p>Да, если установили на домашний экран.</p></details>
         <details class="faq-item"><summary>Как считается вес и объём заполнения?</summary><p>Карта розлива задаёт массу (г). Линия флоуметрическая, считает объём (мл). Связь: <b>V = m / ρ</b>.</p></details>
-        <details class="faq-item"><summary>Что значит «режим верхнего налива»?</summary><p>При вязкости выше 1000 ед. приложение рекомендует верхний налив — снижает износ привода траверсы.</p></details>
+        <details class="faq-item"><summary>Что значит «физическая модель» в рецепте?</summary><p>Если линия откалибрована, частоты считаются по <b>уравнению Пуазейля</b> и модели проскальзывания насоса. Учитывается вязкость, диаметр (D⁴) и количество сопел.</p></details>
     </div>
 
 </section>
@@ -1011,6 +1028,74 @@
                     </div>
                 </div>
 
+                <!-- ============ КАЛИБРОВКА РОЗЛИВА · ПАСПОРТ НАСОСА ============ -->
+                <div class="eng-card eng-card-pump">
+                    <h3>🎯 Калибровка розлива (Паспорт насоса)</h3>
+
+                    <p class="eng-pump-desc">
+                        Один раз при наладке линии. Замерьте вручную времени ступеней на эталонном продукте —
+                        приложение выведет паспорт насоса <b>K_base</b> и будет генерировать рецепты
+                        по строгой физике (Пуазейль + проскальзывание).
+                    </p>
+
+                    <h4 class="eng-pump-sub">Эталонный продукт</h4>
+                    <div class="eng-inputs-row">
+                        <div>
+                            <label for="pump-mu-calib">Вязкость, ед.</label>
+                            <input id="pump-mu-calib" type="number" step="50" min="1" value="1000">
+                        </div>
+                        <div>
+                            <label for="pump-d-calib">Диаметр сопел, мм</label>
+                            <select id="pump-d-calib">
+                                <option value="16">16 мм</option>
+                                <option value="21" selected>21 мм</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="pump-n-calib">Кол-во сопел</label>
+                            <select id="pump-n-calib">
+                                <option value="8">8 шт</option>
+                                <option value="10" selected>10 шт</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <h4 class="eng-pump-sub">Текущий рецепт на ПЛК (во время теста)</h4>
+                    <table class="eng-table eng-table-pump">
+                        <thead>
+                            <tr><th>Ступень</th><th>V, мл</th><th>Гц</th><th>t, сек</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>1 — Старт</td>
+                                <td><input id="pump-v1" type="number" step="1" min="0" value="200"></td>
+                                <td><input id="pump-hz1" type="number" step="0.1" min="0" value="30"></td>
+                                <td><input id="pump-t1" type="number" step="0.1" min="0.1" value="12.5"></td>
+                            </tr>
+                            <tr>
+                                <td>2 — Нагон</td>
+                                <td><input id="pump-v2" type="number" step="1" min="0" value="650"></td>
+                                <td><input id="pump-hz2" type="number" step="0.1" min="0" value="55"></td>
+                                <td><input id="pump-t2" type="number" step="0.1" min="0.1" value="15.2"></td>
+                            </tr>
+                            <tr>
+                                <td>3 — Долив</td>
+                                <td><input id="pump-v3" type="number" step="1" min="0" value="150"></td>
+                                <td><input id="pump-hz3" type="number" step="0.1" min="0" value="18"></td>
+                                <td><input id="pump-t3" type="number" step="0.1" min="0.1" value="10.8"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="eng-pump-actions">
+                        <button onclick="calcPumpPassport()" class="btn btn-primary btn-block">🧮 Рассчитать паспорт</button>
+                        <button onclick="savePumpPassport()" class="btn btn-secondary btn-block">💾 Сохранить паспорт</button>
+                    </div>
+
+                    <div id="pump-fit" class="eng-fit eng-fit-pump">—</div>
+                    <div id="pump-status" class="eng-status eng-status-pump">Не откалибровано</div>
+                </div>
+
                 <div class="modal-actions-grid">
                     <button onclick="saveEngCoeffs()" class="btn btn-primary">💾 Сохранить</button>
                     <button onclick="resetEngCoeffs()" class="btn btn-secondary">🔄 К заводским</button>
@@ -1063,6 +1148,11 @@
     <div id="sim-crush-anim" class="sim-crush-anim hidden"></div>
     <div id="sim-particles" class="sim-particles"></div>
 </div>
+
+<!-- ============================================================
+     МАТРИЧНАЯ АНИМАЦИЯ ГЕНЕРАЦИИ РЕЦЕПТА
+     ============================================================ -->
+<canvas id="matrix-overlay" class="matrix-overlay hidden"></canvas>
 
 <script src="script.js"></script>
 </body>
