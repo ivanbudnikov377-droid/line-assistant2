@@ -46,13 +46,105 @@ function loadPumpPassports() {
 function savePumpPassports() {
     try { localStorage.setItem(PUMP_PASSPORT_KEY, JSON.stringify(pumpPassports)); }
     catch { alert('Не удалось сохранить паспорт насоса.'); }
+    // Синхронизация с сервером (если API_BASE задан)
+    pushToServer({ pumpPassports, labelerCoeffs });
 }
 function getPassportForLine(line) {
     return pumpPassports[line] || null;
 }
 
-// Экспоненты D⁴-зависимости по ступеням
 const PUMP_D_EXPONENT = { stage1: 1, stage2: 4, stage3: 1 };
+
+// ============================================================
+// СИНХРОНИЗАЦИЯ С СЕРВЕРОМ
+// ============================================================
+// null → работаем только с localStorage (как сейчас, без сервера)
+// '/api' → работаем через сервер на том же домене
+// 'http://server.local:8000/api' → внешний сервер
+const API_BASE = null;
+
+async function isServerAvailable() {
+    if (!API_BASE) return false;
+    try {
+        const r = await fetch(`${API_BASE}/ping`, { method: 'GET', cache: 'no-store' });
+        return r.ok;
+    } catch { return false; }
+}
+
+async function loadAllFromServer() {
+    if (!API_BASE) return false;
+    try {
+        const r = await fetch(`${API_BASE}/all`);
+        if (!r.ok) throw new Error('Server error');
+        const data = await r.json();
+
+        if (data.pumpPassports) {
+            pumpPassports = data.pumpPassports;
+            localStorage.setItem(PUMP_PASSPORT_KEY, JSON.stringify(pumpPassports));
+        }
+        if (data.labelerCoeffs) {
+            labelerCoeffs = data.labelerCoeffs;
+            localStorage.setItem(ENG_STORAGE_KEY, JSON.stringify(labelerCoeffs));
+        }
+        if (data.journal) {
+            journal = data.journal;
+            localStorage.setItem(JOURNAL_KEY, JSON.stringify(journal));
+        }
+        console.log('✅ Данные загружены с сервера');
+        return true;
+    } catch (e) {
+        console.log('⚠️ Сервер недоступен, используем локальные данные');
+        return false;
+    }
+}
+
+async function pushToServer(payload) {
+    if (!API_BASE) return true;
+    try {
+        await fetch(`${API_BASE}/sync`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        return true;
+    } catch {
+        queueForSync(payload);
+        return false;
+    }
+}
+
+function queueForSync(payload) {
+    try {
+        const queue = JSON.parse(localStorage.getItem('line-assistant-sync-queue') || '[]');
+        queue.push({ payload, ts: Date.now() });
+        localStorage.setItem('line-assistant-sync-queue', JSON.stringify(queue));
+    } catch {}
+}
+
+async function flushSyncQueue() {
+    if (!API_BASE) return;
+    let queue;
+    try { queue = JSON.parse(localStorage.getItem('line-assistant-sync-queue') || '[]'); }
+    catch { return; }
+    if (!queue.length) return;
+
+    for (const item of queue) {
+        try {
+            await fetch(`${API_BASE}/sync`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(item.payload)
+            });
+        } catch { return; }
+    }
+    localStorage.removeItem('line-assistant-sync-queue');
+    console.log('✅ Очередь синхронизации отправлена');
+}
+
+window.addEventListener('online', () => {
+    flushSyncQueue();
+    loadAllFromServer();
+});
 
 // ============================================================
 // 1. ЗАСТАВКА ПРИ ЗАПУСКЕ
@@ -104,40 +196,30 @@ async function generateRecipeView() {
 
     const passport = getPassportForLine(line);
 
-    // Базовая валидация линии и объёма
     if (!isVolumeAllowedForLine(line, V_total)) {
         if (!confirm(`${getLineVolumeWarning(line, V_total)}\n\nПродолжить?`)) return;
     }
 
-    // Если паспорт есть — генерируем по физической модели
     if (passport) {
         const result = computeRecipeByPhysics(passport, V_total, mu_target);
-        if (!result.ok) {
-            alert(result.error);
-            return;
-        }
-        // Матричная анимация перед переключением
+        if (!result.ok) { alert(result.error); return; }
         await generateRecipeWithMatrix();
         applyPhysicsRecipeToPLC(result, passport);
     } else {
-        // Fallback — старая модель
         runUniversalCalculation();
         const warnEl = document.getElementById('viscosityNotice');
         if (warnEl) {
             warnEl.style.display = 'block';
             warnEl.textContent = '⚠️ Линия не откалибрована по физической модели. Используется приблизительный расчёт. Обратитесь к инженеру.';
         }
-        // Матричная анимация перед переключением
         await generateRecipeWithMatrix();
     }
 
-    // Обновляем заголовок
     const headerLine = document.getElementById('recipe-header-line');
     if (headerLine) {
         headerLine.textContent = document.getElementById('lineSelect').selectedOptions[0].textContent;
     }
 
-    // Переключаем экраны с анимацией
     const inputView = document.getElementById('filling-input-view');
     const recipeView = document.getElementById('filling-recipe-view');
 
@@ -207,12 +289,10 @@ function computeRecipeByPhysics(passport, V_total, mu_target) {
         };
     }
 
-    // Пропорции фаз — из калибровки
     const V_calib_total = V_calib[0] + V_calib[1] + V_calib[2];
     const proportions = V_calib.map(v => v / V_calib_total);
     const V_phases = proportions.map(p => Math.round(p * V_total));
 
-    // Индексы компенсации по ступеням
     const muRatio = mu_target / mu_calib;
     const dRatio = D_calib / D_current;
     const nRatio = n_calib / n_current;
@@ -221,12 +301,10 @@ function computeRecipeByPhysics(passport, V_total, mu_target) {
     const index2 = muRatio * Math.pow(dRatio, PUMP_D_EXPONENT.stage2) * nRatio;
     const index3 = muRatio * Math.pow(dRatio, PUMP_D_EXPONENT.stage3) * nRatio;
 
-    // Компенсированные частоты
     const Hz1 = Hz_calib[0] * index1;
     const Hz2 = Hz_calib[1] * index2;
     const Hz3 = Hz_calib[2] * index3;
 
-    // Защита ПЛК
     const LIMIT_HZ = 80;
     const MIN_HZ = 15;
 
@@ -982,6 +1060,8 @@ function loadJournal() {
 function saveJournalToStorage() {
     try { localStorage.setItem(JOURNAL_KEY, JSON.stringify(journal)); }
     catch { alert('Не удалось сохранить журнал.'); }
+    // Синхронизация с сервером
+    pushToServer({ journal });
 }
 function openJournal() { loadJournal(); renderJournal(); document.getElementById('journal-overlay').classList.remove('hidden'); }
 function closeJournal() { document.getElementById('journal-overlay').classList.add('hidden'); }
@@ -1298,6 +1378,8 @@ function saveEngCoeffs(silent = false) {
     const today = new Date().toISOString().slice(0, 10);
     ['conveyor', 'press', 'roller'].forEach(d => { if ((c[d].points || []).length > 0) c[d].calibrated = today; });
     localStorage.setItem(ENG_STORAGE_KEY, JSON.stringify(labelerCoeffs));
+    // Синхронизация с сервером
+    pushToServer({ pumpPassports, labelerCoeffs });
     if (!silent) {
         alert(`Коэффициенты для "${document.getElementById('eng-line-select').selectedOptions[0].textContent}" сохранены.`);
     }
@@ -1320,6 +1402,7 @@ function resetEngCoeffs() {
         labelerCoeffs[line] = { conveyor: emptyDrive(), press: emptyDrive(), roller: emptyDrive() };
     }
     localStorage.setItem(ENG_STORAGE_KEY, JSON.stringify(labelerCoeffs));
+    pushToServer({ pumpPassports, labelerCoeffs });
     loadEngLine(); calculateLabelerFrequencies(); takeEngSnapshot();
     engDirty = false; engPrevLine = line;
 }
@@ -1362,6 +1445,7 @@ function importEngCoeffs() {
                 }
                 if (!imported.length) { alert('Нет данных по известным линиям.'); return; }
                 localStorage.setItem(ENG_STORAGE_KEY, JSON.stringify(labelerCoeffs));
+                pushToServer({ pumpPassports, labelerCoeffs });
                 loadEngLine(); calculateLabelerFrequencies(); takeEngSnapshot(); engDirty = false;
                 let msg = `Импортировано: ${imported.length}\n` + imported.map(l => `  • ${l}`).join('\n');
                 if (skipped.length) msg += `\n\nПропущено:\n` + skipped.map(l => `  • ${l}`).join('\n');
@@ -2775,17 +2859,12 @@ function startMatrixAnimation(durationMs = 1800) {
     });
 }
 
-// ============================================================
-// ЗВУК МАТРИЦЫ
-// ============================================================
-
 function playMatrixSound() {
     try {
         if (!simAudioCtx) simAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const ctx = simAudioCtx;
         const now = ctx.currentTime;
 
-        // 1. Нарастающий низкий свип
         const sweepOsc = ctx.createOscillator();
         const sweepGain = ctx.createGain();
         sweepOsc.type = 'sawtooth';
@@ -2798,7 +2877,6 @@ function playMatrixSound() {
         sweepOsc.start(now);
         sweepOsc.stop(now + 1.6);
 
-        // 2. Серия цифровых бипов
         const beepCount = 26;
         for (let i = 0; i < beepCount; i++) {
             const t = now + 0.15 + (i / beepCount) * 1.3;
@@ -2818,7 +2896,6 @@ function playMatrixSound() {
             osc.stop(t + dur + 0.01);
         }
 
-        // 3. Финальный аккорд
         const chordTime = now + 1.55;
         const chordFreqs = [523, 659, 784, 1046];
         chordFreqs.forEach((f, i) => {
@@ -2834,7 +2911,6 @@ function playMatrixSound() {
             osc.stop(chordTime + i * 0.04 + 1.0);
         });
 
-        // 4. Итоговый звон
         const bellTime = now + 1.85;
         const bell = ctx.createOscillator();
         const bellGain = ctx.createGain();
@@ -2931,7 +3007,16 @@ function simInit() {
 // 21. ИНИЦИАЛИЗАЦИЯ
 // ============================================================
 
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
+    // Проверка сервера и загрузка данных (если API_BASE задан)
+    (async () => {
+        const ok = await isServerAvailable();
+        if (ok) {
+            await loadAllFromServer();
+            await flushSyncQueue();
+        }
+    })();
+
     initSplash();
     initEngStorage();
     loadPumpPassports();
